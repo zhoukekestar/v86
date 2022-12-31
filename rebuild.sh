@@ -1,7 +1,7 @@
 #!/bin/bash
 
-make clean
-make
+# make clean
+# make
 
-echo "build success!"
+# echo "build success!"
 npx serve . -p 80
