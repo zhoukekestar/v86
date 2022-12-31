@@ -66,11 +66,11 @@ const loadFile = url => fetch(url).then(d => d.arrayBuffer());
   const settings = {
     load_devices: true,
   };
-  settings.bios = await loadFile('bios/seabios.bin');
-  settings.vga_bios = await loadFile('bios/vgabios.bin');
+  settings.bios = await loadFile('/bios/seabios.bin');
+  settings.vga_bios = await loadFile('/bios/vgabios.bin');
 
-  settings.floppy_disk = new SyncBuffer(await loadFile('images/windows101.img'));
-  // settings.cdrom_disk = new SyncBuffer(await loadFile('images/linux.iso'));
+  settings.floppy_disk = new SyncBuffer(await loadFile('/images/windows101.img'));
+  // settings.cdrom_disk = new SyncBuffer(await loadFile('/images/linux.iso'));
 
 
   const cpu = new v86();

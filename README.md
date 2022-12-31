@@ -4,7 +4,7 @@
 * this repo is fork from [copy/v86] and checkouted first commit
 * images is download from [copy/images]
 * you can start it with `npx serve . -p 80`
-
+* rebuild cpu.js `cd src/cpu && make`
 
 
 # ORIGINAL
