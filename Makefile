@@ -1,5 +1,6 @@
 CLOSURE=../closure-compiler/closure-compiler-v20210302.jar
-CPP=cpp
+# CPP=/opt/homebrew/Cellar/llvm/15.0.6/bin/clang-cpp
+CPP=cpp-12
 
 all: v86_all.js
 
