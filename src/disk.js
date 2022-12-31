@@ -1,7 +1,7 @@
 "use strict";
 
 
-var 
+var
     /** @const */
     CDROM_SECTOR_SIZE = 2048,
     /** @const */
@@ -55,7 +55,7 @@ function HDD(dev, disk_buffer, nr)
     this.head_count = 16;
     this.sectors_per_track = 63;
 
-    this.cylinder_count = disk_buffer.byteLength / 
+    this.cylinder_count = disk_buffer.byteLength /
         this.head_count / (this.sectors_per_track + 1) / this.sector_size;
 
     dbg_assert(this.cylinder_count === (this.cylinder_count | 0));
@@ -155,57 +155,57 @@ function HDD(dev, disk_buffer, nr)
             data_pointer = 0;
 
             pio_data = new Uint8Array([
-                0x40, 0, 
+                0x40, 0,
                 // 1 cylinders
-                me.cylinder_count, me.cylinder_count >> 8, 
-                0, 0, 
-        
+                me.cylinder_count, me.cylinder_count >> 8,
+                0, 0,
+
                 // 3 heads
-                me.head_count, me.head_count >> 8, 
+                me.head_count, me.head_count >> 8,
                 0, 0,
                 // 5
-                0, 0, 
+                0, 0,
                 // sectors per track
-                me.sectors_per_track, 0, 
+                me.sectors_per_track, 0,
                 0, 0, 0, 0, 0, 0,
                 // 10-19 serial number
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 // 15
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 // 20
-                3, 0, 0, 2, 4, 0, 
+                3, 0, 0, 2, 4, 0,
                 // 23-26 firmware revision
-                0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0,
 
                 // 27 model number
-                32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 
+                32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
                 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
 
                 // 47
-                0, 0, 
-                1, 0, 
+                0, 0,
+                1, 0,
                 0, 3,  // capabilities
                 // 50
-                0, 0, 
-                0, 2, 
-                0, 2, 
-                7, 0, 
+                0, 0,
+                0, 2,
+                0, 2,
+                7, 0,
 
                 // 54 cylinders
-                me.cylinder_count, me.cylinder_count >> 8, 
+                me.cylinder_count, me.cylinder_count >> 8,
                 // 55 heads
-                me.head_count, me.head_count >> 8, 
+                me.head_count, me.head_count >> 8,
                 // 56 sectors per track
-                me.sectors_per_track, 0, 
+                me.sectors_per_track, 0,
                 // capacity in sectors
-                this.sector_count & 0xFF, this.sector_count >> 8 & 0xFF, 
-                this.sector_count >> 16 & 0xFF, this.sector_count >> 24 & 0xFF, 
-                
+                this.sector_count & 0xFF, this.sector_count >> 8 & 0xFF,
+                this.sector_count >> 16 & 0xFF, this.sector_count >> 24 & 0xFF,
+
                 0, 0,
                 // 60
-                this.sector_count & 0xFF, this.sector_count >> 8 & 0xFF, 
-                this.sector_count >> 16 & 0xFF, this.sector_count >> 24 & 0xFF, 
-                
+                this.sector_count & 0xFF, this.sector_count >> 8 & 0xFF,
+                this.sector_count >> 16 & 0xFF, this.sector_count >> 24 & 0xFF,
+
                 0, 0, 0, 0, 0, 0,
                 // 65
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -222,9 +222,9 @@ function HDD(dev, disk_buffer, nr)
                 // 95
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 // 100
-                this.sector_count & 0xFF, this.sector_count >> 8 & 0xFF, 
-                this.sector_count >> 16 & 0xFF, this.sector_count >> 24 & 0xFF, 
-                
+                this.sector_count & 0xFF, this.sector_count >> 8 & 0xFF,
+                this.sector_count >> 16 & 0xFF, this.sector_count >> 24 & 0xFF,
+
 
             ]);
 
@@ -365,7 +365,7 @@ function AHCIDevice()
             //bytecount = Math.min(count * me.sector_size, byte_len + 1);
             bytecount = count * me.sector_size;
 
-        dbg_log("CD read lba=" + h(lba) + 
+        dbg_log("CD read lba=" + h(lba) +
                 " lbacount=" + h(count) +
                 " bytelen=" + h(byte_len) +
                 " copycount=" + h(bytecount) +
@@ -399,8 +399,8 @@ function AHCIDevice()
         }
         else
         {
-            this.buffer.set(lba * me.sector_size, 
-                new Uint8Array(memory.buffer, dest, bytecount), 
+            this.buffer.set(lba * me.sector_size,
+                new Uint8Array(memory.buffer, dest, bytecount),
                 function()
                 {
                 });
@@ -412,10 +412,10 @@ function AHCIDevice()
     {
         switch(addr)
         {
-            case 0: 
+            case 0:
                 return host_caps;
 
-            case 4: 
+            case 4:
                 return host_ctl;
 
             case 0xC:
@@ -427,7 +427,7 @@ function AHCIDevice()
             case 0x110:
                 return host_intbits;
 
-            default: 
+            default:
                 dbg_log("New PCI mmio read from " + h(addr, 8), LOG_CD);
         }
     }
@@ -450,8 +450,8 @@ function AHCIDevice()
                 break;
 
             case 0x138:
-                var 
-                    
+                var
+
                     ctba_addr = memory.read32s(port_lst_addr + 8),
 
                     first_prdt_start = ctba_addr + 0x80,
@@ -530,14 +530,14 @@ function AHCIDevice()
                         dbg_log("atapi - unimplemented " + h(atapi_command, 2), LOG_CD);
                     }
                 }
-                else 
+                else
                 {
                     dbg_log("unimplemented fis command: " + h(fis_command, 2));
                 }
 
                 break;
 
-            default: 
+            default:
                 dbg_log("PCI mmio write addr=" + h(addr, 8) + " value=" + h(value, 8), LOG_CD);
         }
     }
