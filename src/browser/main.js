@@ -24,47 +24,7 @@ var next_tick, set_tick;
   }
 })();
 
-function load_file(filename, done, progress) {
-  var http = new XMLHttpRequest();
 
-  http.open('get', filename, true);
-  http.responseType = 'arraybuffer';
-
-  http.onload = function (e) {
-    //if(http.readyState === 4 && http.status === 200)
-    if (http.response) {
-      done(http.response);
-    }
-  };
-
-  if (progress) {
-    http.onprogress = function (e) {
-      progress(e);
-    };
-  }
-
-  http.send(null);
-}
-
-var settings = {
-  load_devices: true,
-};
-
-load_file('bios/seabios.bin', function (img) {
-  settings.bios = img;
-});
-
-load_file('bios/vgabios.bin', function (img) {
-  settings.vga_bios = img;
-});
-
-load_file(
-  'images/windows101.img',
-  function (buffer) {
-    settings.floppy_disk = new SyncBuffer(buffer);
-    init(settings);
-  }
-);
 function $(id) {
   return document.getElementById(id);
 }
@@ -75,7 +35,6 @@ function log(data) {
   log_element.textContent += data + '\n';
   log_element.scrollTop = 1e9;
 }
-
 
 function dump_file(ab, name) {
   var blob = new Blob([ab]),
@@ -98,58 +57,28 @@ function dump_file(ab, name) {
   document.body.appendChild(a);
 }
 
+const loadFile = url => fetch(url).then(d => d.arrayBuffer());
 
-function init(settings) {
-  var cpu = new v86(),
-    screen_adapter = new ScreenAdapter();
+!(async () => {
+  window.DEBUG = false;
+  console.log('loading...');
 
-  $('boot_options').parentNode.removeChild($('boot_options'));
-  $('loading').style.display = 'none';
-  $('runtime_options').style.display = 'block';
-  document.getElementsByClassName('phone_keyboard')[0].style.display = 'block';
+  const settings = {
+    load_devices: true,
+  };
+  settings.bios = await loadFile('bios/seabios.bin');
+  settings.vga_bios = await loadFile('bios/vgabios.bin');
 
-  if (DEBUG) {
-    $('step').onclick = function () {
-      debug.step();
-    };
+  settings.floppy_disk = new SyncBuffer(await loadFile('images/windows101.img'));
+  // settings.cdrom_disk = new SyncBuffer(await loadFile('images/linux.iso'));
 
-    $('run_until').onclick = function () {
-      debug.run_until();
-    };
 
-    $('debugger').onclick = function () {
-      debug.debugger();
-    };
-  }
+  const cpu = new v86();
 
-  var running = true;
-
-  var time = document.getElementById('running_time'),
-    ips = document.getElementById('speed'),
-    last_tick = Date.now(),
-    running_time = 0,
-    last_instr_counter = 0;
-
-  function update_info() {
-    if (running) {
-      var now = Date.now();
-
-      running_time += now - last_tick;
-      last_tick = now;
-
-      ips.textContent = ((cpu.instr_counter - last_instr_counter) / 1000) | 0;
-      time.textContent = (running_time / 1000) | 0;
-
-      last_instr_counter = cpu.instr_counter;
-    }
-  }
-
-  setInterval(update_info, 1000);
-
-  settings.screen_adapter = screen_adapter;
+  settings.screen_adapter = new ScreenAdapter();
   settings.keyboard_adapter = new KeyboardAdapter();
   settings.mouse_adapter = new MouseAdapter();
 
   cpu.init(settings);
   cpu.run();
-}
+})();
