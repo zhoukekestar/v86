@@ -22,7 +22,7 @@ var
     segment_limits,
     segment_infos,
     /*
-     * Translation Lookaside Buffer 
+     * Translation Lookaside Buffer
      */
     tlb_user_read,
     tlb_user_write,
@@ -41,26 +41,26 @@ var
      * Same as tlb_info, except it only contains global pages
      */
     tlb_info_global,
-    /** 
+    /**
      * Wheter or not in protected mode
-     * @type {boolean} 
+     * @type {boolean}
      */
     protected_mode,
-    /** 
+    /**
      * interrupt descriptor table
      * @type {number}
      */
     idtr_size,
     /** @type {number} */
     idtr_offset,
-    /** 
+    /**
      * global descriptor table register
      * @type {number}
      */
     gdtr_size,
     /** @type {number} */
     gdtr_offset,
-    /** 
+    /**
      * local desciptor table
      * @type {number}
      */
@@ -68,8 +68,8 @@ var
     /** @type {number} */
     ldtr_offset,
     /**
-     * task register 
-     * @type {number} 
+     * task register
+     * @type {number}
      */
     tsr_size,
     /** @type {number} */
@@ -78,6 +78,7 @@ var
      * whether or not a page fault occured
      */
     page_fault,
+    // 控制寄存器，control register
     /** @type {number} */
     cr0,
     /** @type {number} */
@@ -89,6 +90,7 @@ var
     // current privilege level
     /** @type {number} */
     cpl,
+    // 标记是否开启分页模式
     // paging enabled
     /** @type {boolean} */
     paging,
@@ -102,14 +104,14 @@ var
     operand_size_32,
     /** @type {boolean} */
     stack_size_32,
-    /** 
+    /**
      * Cycles since last cpu reset, used by rdtsc instruction
      * @type {number}
      */
     cpu_timestamp_counter,
     /** @type {number} */
     previous_ip,
-    /** 
+    /**
      * wheter or not in step mode
      * used for debugging
      * @type {boolean}
@@ -124,12 +126,12 @@ var
     vga,
     /** @type {PS2} */
     ps2,
-    /** 
+    /**
      * Programmable interval timer
      * @type {PIT}
      */
     timer,
-    /** 
+    /**
      * Real Time Clock
      * @type {RTC}
      */
@@ -209,15 +211,15 @@ var
     last_result,
     /** @type {number} */
     flags,
-    /** 
+    /**
      * bitmap of flags which are not updated in the flags variable
      * changed by arithmetic instructions, so only relevant to arithmetic flags
      * @type {number}
      */
     flags_changed,
-    /** 
+    /**
      * the last 2 operators and the result and size of the last arithmetic operation
-     * @type {number} 
+     * @type {number}
      */
     last_op1,
     /** @type {number} */
@@ -241,6 +243,9 @@ var
     reg_vcx,
     reg_vsi,
     reg_vdi,
+    // 用于读取内存字段，因为有分页和无分页的区别
+    // 所以需要定义一个全局变量，用于切换读取方式，实现方式：pe_functions 或 npe_functions;
+    //
     // functions that are set depending on whether paging is enabled or not
     read_imm8,
     read_imm8s,
@@ -252,9 +257,12 @@ var
     safe_read32s,
     get_esp_read,
     get_esp_write,
+    // 用于映射是使用 16 位的指令集，还是 32 位指令集
     table,
     table0F,
+    // 用于切换地址长度为 16 位还是 32 位
     modrm_resolve,
+    // 当前实例配置，比如 cdrom 和 软盘 分别是哪些
     current_settings
 ;
 function cpu_run()
@@ -487,7 +495,7 @@ function cpu_init(settings)
     }
     if(DEBUG)
     {
-        // used for debugging 
+        // used for debugging
         ops = new CircularQueue(30000);
         if(typeof window !== "undefined")
         {
@@ -518,7 +526,7 @@ function cpu_init(settings)
 function do_run()
 {
     var
-        /** 
+        /**
          * @type {number}
          */
         now,
@@ -551,14 +559,16 @@ function do_run()
     }
     next_tick();
 }
-// do_run must not be inlined into cpu_run, because then more code 
-// is in the deoptimized try-catch. 
+// do_run must not be inlined into cpu_run, because then more code
+// is in the deoptimized try-catch.
 // This trick is a bit ugly, but it works without further complication.
 if(typeof window !== "undefined")
 {
     window.__no_inline = do_run;
 }
 /**
+ * 执行一条 CPU 指令，这个方法是 CPU 执行的主循环
+ *
  * execute a single instruction cycle on the cpu
  * this includes reading all prefixes and the whole instruction
  */
@@ -571,7 +581,7 @@ function cycle()
     // TODO
     //if(flags & flag_trap)
     //{
-    //    
+    //
     //}
 }
 cpu.cycle = function()
@@ -674,7 +684,7 @@ var pe_functions =
             eip_phys = translate_address_read(instruction_pointer) ^ instruction_pointer;
             last_virt_eip = instruction_pointer & ~0xFFF;
         }
-        // memory.read8 inlined under the assumption that code never runs in 
+        // memory.read8 inlined under the assumption that code never runs in
         // memory-mapped io
         return memory.mem8[eip_phys ^ instruction_pointer++];
     },
@@ -883,7 +893,7 @@ function get_esp_npe(mod)
 }
 function get_esp_pe_read(mod)
 {
-    // UNSAFE: stack_reg[reg_vsp]+mod needs to be masked in 16 bit mode 
+    // UNSAFE: stack_reg[reg_vsp]+mod needs to be masked in 16 bit mode
     //   (only if paging is enabled and in 16 bit mode)
     return translate_address_read(get_seg(reg_ss) + stack_reg[reg_vsp] + mod);
 }
@@ -892,7 +902,7 @@ function get_esp_pe_write(mod)
     return translate_address_write(get_seg(reg_ss) + stack_reg[reg_vsp] + mod);
 }
 /*
- * returns the "real" instruction pointer, 
+ * returns the "real" instruction pointer,
  * without segment offset
  */
 function get_real_ip()
@@ -915,7 +925,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
     //}
     //if(interrupt_nr == 0x10)
     //{
-    //    dbg_log("int10 ax=" + h(reg16[reg_ax], 4) + " '" + String.fromCharCode(reg8[reg_al]) + "'"); 
+    //    dbg_log("int10 ax=" + h(reg16[reg_ax], 4) + " '" + String.fromCharCode(reg8[reg_al]) + "'");
     //    dump_regs_short();
     //    if(reg8[reg_ah] == 0xe) vga.tt_write(reg8[reg_al]);
     //}
@@ -1058,7 +1068,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
             reg32[reg_esp] = new_esp;
             sreg[reg_ss] = new_ss;
             cpl = info.dpl;
-            //dbg_log("int" + h(interrupt_nr, 2) +" from=" + h(instruction_pointer, 8) 
+            //dbg_log("int" + h(interrupt_nr, 2) +" from=" + h(instruction_pointer, 8)
             //        + " cpl=" + cpl + " old ss:esp=" + h(old_ss,4) + ":" + h(old_esp,8), LOG_CPU);
             cpl_changed();
             push32(old_ss);
@@ -1206,7 +1216,7 @@ function get_seg(segment /*, offset*/)
                 throw unimpl("#GP handler");
             }
         }
-        // TODO: 
+        // TODO:
         // - validate segment limits
         // - validate if segment is writable
         // - set accessed bit
@@ -1415,6 +1425,7 @@ function update_address_size()
 {
     if(address_size_32)
     {
+        // 用于切换地址长度为 16 位还是 32 位
         modrm_resolve = modrm_resolve32;
         regv = reg32;
         reg_vcx = reg_ecx;
@@ -1423,6 +1434,7 @@ function update_address_size()
     }
     else
     {
+        // 用于切换地址长度为 16 位还是 32 位
         modrm_resolve = modrm_resolve16;
         regv = reg16;
         reg_vcx = reg_cx;
@@ -1777,7 +1789,7 @@ function translate_address_system_read(addr)
     }
 }
 /**
- * @return {number} 
+ * @return {number}
  */
 function do_page_translation(addr, for_writing, user)
 {
@@ -1924,7 +1936,7 @@ function trigger_pagefault(write, user, present)
     call_interrupt_vector(14, false, user << 2 | write << 1 | present);
     throw 0xDEADBEE;
 }
-// it looks pointless to have these two here, but 
+// it looks pointless to have these two here, but
 // Closure Compiler is able to remove unused functions
 //#include "test_helpers.js"
 "use strict";
@@ -5607,10 +5619,10 @@ function FPU(io)
     };
 }
 "use strict";
-var table16 = [],
-    table32 = [],
-    table0F_16 = [],
-    table0F_32 = [];
+var table16 = [], // 16 位模式下的操作指令集映射
+    table32 = [], // 32 位模式下的操作指令集映射
+    table0F_16 = [], // 16 位模式下的 2 字节操作指令集映射，参考 http://ref.x86asm.net/#column_0F，OF 为指令前缀
+    table0F_32 = []; // 32 位模式下的 2 字节操作指令集映射
 // no cmp, because it uses different arguments
 // very special, should be somewhere else?
 // equivalent to switch(modrm_byte >> 3 & 7)
@@ -5619,7 +5631,7 @@ var table16 = [],
 //#define sub_op1(i0, i1, i2, i3)//    if(modrm_byte & 0x10) { sub_op2(i2, i3) }//    else { sub_op2(i0, i1) }
 //
 //#define sub_op2(i0, i1)//    if(modrm_byte & 0x08) { i1 }//    else { i0 }
-// use modrm_byte to write a value to memory or register 
+// use modrm_byte to write a value to memory or register
 // (without reading it beforehand)
 // use modrm_byte to write a value to memory or register,
 // using the previous data from memory or register.
@@ -5630,8 +5642,8 @@ var table16 = [],
 table16[0x00] = table32[0x00] = function() { var modrm_byte = read_imm8(); { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, add8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1])); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = add8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]); } } }; table16[0x00 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, add16(data, reg16[modrm_byte >> 2 & 14])); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, add16(data, reg16[modrm_byte >> 2 & 14])); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = add16(data, reg16[modrm_byte >> 2 & 14]); } } }; table32[0x00 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, add32(data, reg32[modrm_byte >> 3 & 7])); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, add32(data, reg32[modrm_byte >> 3 & 7])); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = add32(data, reg32[modrm_byte >> 3 & 7]); } } }; table16[0x00 | 2] = table32[0x00 | 2] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; }; reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1] = add8(reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1], data); } }; table16[0x00 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; reg16[modrm_byte >> 2 & 14] = add16(reg16[modrm_byte >> 2 & 14], data); } }; table32[0x00 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = (safe_read32s(modrm_resolve(modrm_byte)) >>> 0); } else { data = reg32[modrm_byte & 7]; }; reg32s[modrm_byte >> 3 & 7] = add32(reg32[modrm_byte >> 3 & 7], data); } }; table16[0x00 | 4] = table32[0x00 | 4] = function() { { reg8[reg_al] = add8(reg8[reg_al], read_imm8()); } }; table16[0x00 | 5] = function() { { reg16[reg_ax] = add16(reg16[reg_ax], read_imm16()); } }; table32[0x00 | 5] = function() { { reg32[reg_eax] = add32(reg32[reg_eax], (read_imm32s() >>> 0)); } };;
 table16[0x06] = function() { { push16(sreg[reg_es]); } }; table32[0x06] = function() { { push32(sreg[reg_es]); } };;
 table16[0x07] = function() { { switch_seg(reg_es, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; } }; table32[0x07] = function() { { switch_seg(reg_es, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; } };;;
-//op2(0x07, 
-//    { safe_pop16(sreg[reg_es]); switch_seg(reg_es, memory.read16(get_esp_read(0))); }, 
+//op2(0x07,
+//    { safe_pop16(sreg[reg_es]); switch_seg(reg_es, memory.read16(get_esp_read(0))); },
 //    { safe_pop32s(sreg[reg_es]); switch_seg(reg_es); });
 table16[0x08] = table32[0x08] = function() { var modrm_byte = read_imm8(); { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, or8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1])); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = or8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]); } } }; table16[0x08 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, or16(data, reg16[modrm_byte >> 2 & 14])); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, or16(data, reg16[modrm_byte >> 2 & 14])); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = or16(data, reg16[modrm_byte >> 2 & 14]); } } }; table32[0x08 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high); virt_boundary_write32(phys_addr, phys_addr_high, or32(data, reg32s[modrm_byte >> 3 & 7])); } else { data = memory.read32s(phys_addr); memory.write32(phys_addr, or32(data, reg32s[modrm_byte >> 3 & 7])); } } else { data = reg32s[modrm_byte & 7]; reg32s[modrm_byte & 7] = or32(data, reg32s[modrm_byte >> 3 & 7]); } } }; table16[0x08 | 2] = table32[0x08 | 2] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; }; reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1] = or8(reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1], data); } }; table16[0x08 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; reg16[modrm_byte >> 2 & 14] = or16(reg16[modrm_byte >> 2 & 14], data); } }; table32[0x08 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; reg32s[modrm_byte >> 3 & 7] = or32(reg32s[modrm_byte >> 3 & 7], data); } }; table16[0x08 | 4] = table32[0x08 | 4] = function() { { reg8[reg_al] = or8(reg8[reg_al], read_imm8()); } }; table16[0x08 | 5] = function() { { reg16[reg_ax] = or16(reg16[reg_ax], read_imm16()); } }; table32[0x08 | 5] = function() { { reg32[reg_eax] = or32(reg32s[reg_eax], read_imm32s()); } };;
 table16[0x0E] = function() { { push16(sreg[reg_cs]); } }; table32[0x0E] = function() { { push32(sreg[reg_cs]); } };;
@@ -5639,14 +5651,14 @@ table16[0x0F] = table32[0x0F] = function() { { table0F[read_imm8()](); } };;
 table16[0x10] = table32[0x10] = function() { var modrm_byte = read_imm8(); { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, adc8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1])); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = adc8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]); } } }; table16[0x10 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, adc16(data, reg16[modrm_byte >> 2 & 14])); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, adc16(data, reg16[modrm_byte >> 2 & 14])); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = adc16(data, reg16[modrm_byte >> 2 & 14]); } } }; table32[0x10 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, adc32(data, reg32[modrm_byte >> 3 & 7])); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, adc32(data, reg32[modrm_byte >> 3 & 7])); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = adc32(data, reg32[modrm_byte >> 3 & 7]); } } }; table16[0x10 | 2] = table32[0x10 | 2] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; }; reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1] = adc8(reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1], data); } }; table16[0x10 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; reg16[modrm_byte >> 2 & 14] = adc16(reg16[modrm_byte >> 2 & 14], data); } }; table32[0x10 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = (safe_read32s(modrm_resolve(modrm_byte)) >>> 0); } else { data = reg32[modrm_byte & 7]; }; reg32s[modrm_byte >> 3 & 7] = adc32(reg32[modrm_byte >> 3 & 7], data); } }; table16[0x10 | 4] = table32[0x10 | 4] = function() { { reg8[reg_al] = adc8(reg8[reg_al], read_imm8()); } }; table16[0x10 | 5] = function() { { reg16[reg_ax] = adc16(reg16[reg_ax], read_imm16()); } }; table32[0x10 | 5] = function() { { reg32[reg_eax] = adc32(reg32[reg_eax], (read_imm32s() >>> 0)); } };;
 table16[0x16] = function() { { push16(sreg[reg_ss]); } }; table32[0x16] = function() { { push32(sreg[reg_ss]); } };;
 table16[0x17] = function() { { switch_seg(reg_ss, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; } }; table32[0x17] = function() { { switch_seg(reg_ss, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; } };;;
-//op2(0x17, 
-//    { safe_pop16(sreg[reg_ss]); switch_seg(reg_ss); }, 
+//op2(0x17,
+//    { safe_pop16(sreg[reg_ss]); switch_seg(reg_ss); },
 //    { safe_pop32s(sreg[reg_ss]); switch_seg(reg_ss); });
 table16[0x18] = table32[0x18] = function() { var modrm_byte = read_imm8(); { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, sbb8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1])); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = sbb8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]); } } }; table16[0x18 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, sbb16(data, reg16[modrm_byte >> 2 & 14])); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, sbb16(data, reg16[modrm_byte >> 2 & 14])); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = sbb16(data, reg16[modrm_byte >> 2 & 14]); } } }; table32[0x18 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, sbb32(data, reg32[modrm_byte >> 3 & 7])); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, sbb32(data, reg32[modrm_byte >> 3 & 7])); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = sbb32(data, reg32[modrm_byte >> 3 & 7]); } } }; table16[0x18 | 2] = table32[0x18 | 2] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; }; reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1] = sbb8(reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1], data); } }; table16[0x18 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; reg16[modrm_byte >> 2 & 14] = sbb16(reg16[modrm_byte >> 2 & 14], data); } }; table32[0x18 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = (safe_read32s(modrm_resolve(modrm_byte)) >>> 0); } else { data = reg32[modrm_byte & 7]; }; reg32s[modrm_byte >> 3 & 7] = sbb32(reg32[modrm_byte >> 3 & 7], data); } }; table16[0x18 | 4] = table32[0x18 | 4] = function() { { reg8[reg_al] = sbb8(reg8[reg_al], read_imm8()); } }; table16[0x18 | 5] = function() { { reg16[reg_ax] = sbb16(reg16[reg_ax], read_imm16()); } }; table32[0x18 | 5] = function() { { reg32[reg_eax] = sbb32(reg32[reg_eax], (read_imm32s() >>> 0)); } };;
 table16[0x1E] = function() { { push16(sreg[reg_ds]); } }; table32[0x1E] = function() { { push32(sreg[reg_ds]); } };;
 table16[0x1F] = function() { { switch_seg(reg_ds, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; } }; table32[0x1F] = function() { { switch_seg(reg_ds, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; } };;;
-//op2(0x1F, 
-//    { safe_pop16(sreg[reg_ds]); switch_seg(reg_ds); }, 
+//op2(0x1F,
+//    { safe_pop16(sreg[reg_ds]); switch_seg(reg_ds); },
 //    { safe_pop32s(sreg[reg_ds]); switch_seg(reg_ds); });
 table16[0x20] = table32[0x20] = function() { var modrm_byte = read_imm8(); { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, and8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1])); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = and8(data, reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]); } } }; table16[0x20 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, and16(data, reg16[modrm_byte >> 2 & 14])); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, and16(data, reg16[modrm_byte >> 2 & 14])); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = and16(data, reg16[modrm_byte >> 2 & 14]); } } }; table32[0x20 | 1] = function() { var modrm_byte = read_imm8(); { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high); virt_boundary_write32(phys_addr, phys_addr_high, and32(data, reg32s[modrm_byte >> 3 & 7])); } else { data = memory.read32s(phys_addr); memory.write32(phys_addr, and32(data, reg32s[modrm_byte >> 3 & 7])); } } else { data = reg32s[modrm_byte & 7]; reg32s[modrm_byte & 7] = and32(data, reg32s[modrm_byte >> 3 & 7]); } } }; table16[0x20 | 2] = table32[0x20 | 2] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; }; reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1] = and8(reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1], data); } }; table16[0x20 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; reg16[modrm_byte >> 2 & 14] = and16(reg16[modrm_byte >> 2 & 14], data); } }; table32[0x20 | 3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; reg32s[modrm_byte >> 3 & 7] = and32(reg32s[modrm_byte >> 3 & 7], data); } }; table16[0x20 | 4] = table32[0x20 | 4] = function() { { reg8[reg_al] = and8(reg8[reg_al], read_imm8()); } }; table16[0x20 | 5] = function() { { reg16[reg_ax] = and16(reg16[reg_ax], read_imm16()); } }; table32[0x20 | 5] = function() { { reg32[reg_eax] = and32(reg32s[reg_eax], read_imm32s()); } };;
 table16[0x26] = table32[0x26] = function() { { seg_prefix(reg_es); } };;
@@ -5740,12 +5752,12 @@ table16[0xC6] = table32[0xC6] = function() { var modrm_byte = read_imm8(); { if(
 table16[0xC7] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write16(modrm_resolve(modrm_byte), read_imm16()); } else { reg16[modrm_byte << 1 & 14] = read_imm16(); }; } }; table32[0xC7] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write32(modrm_resolve(modrm_byte), read_imm32s()); } else { reg32[modrm_byte & 7] = read_imm32s(); }; } };
 table16[0xC8] = function() { { enter16(); } }; table32[0xC8] = function() { { enter32(); } };;
 table16[0xC9] = function() { { /* leave*/ stack_reg[reg_vsp] = stack_reg[reg_vbp]; reg16[reg_bp] = pop16(); } }; table32[0xC9] = function() { { stack_reg[reg_vsp] = stack_reg[reg_vbp]; reg32[reg_ebp] = pop32s(); } };;
-table16[0xCA] = function() { { /* retf*/ if(protected_mode) { throw unimpl("16 bit retf in protected mode"); } var imm16 = read_imm16(); var ip = pop16(); switch_seg(reg_cs, pop16()); instruction_pointer = get_seg(reg_cs) + ip | 0; reg16[reg_sp] += imm16; } }; table32[0xCA] = function() { { /* retf */ var imm16 = read_imm16(); if(protected_mode) { /*dbg_log("retf");*/ var ip = pop32s(); switch_seg(reg_cs, pop32s() & 0xFFFF); instruction_pointer = get_seg(reg_cs) + ip | 0; stack_reg[reg_vsp] += imm16; } else { throw unimpl("32 bit retf in real mode"); } } };;
-table16[0xCB] = function() { { /* retf*/ if(protected_mode) { throw unimpl("16 bit retf in protected mode"); } else { var ip = pop16(); switch_seg(reg_cs, pop16()); instruction_pointer = get_seg(reg_cs) + ip | 0; } } }; table32[0xCB] = function() { { /* retf */ if(protected_mode) { var ip = pop32s(); switch_seg(reg_cs, pop32s() & 0xFFFF); instruction_pointer = get_seg(reg_cs) + ip | 0; } else { var ip = pop32s(); switch_seg(reg_cs, pop32s() & 0xFFFF); instruction_pointer = get_seg(reg_cs) + ip | 0; } } };;
+table16[0xCA] = function() { { /* retf*/ if(protected_mode) { throw unimpl("16 bit retf in protected mode"); } var imm16 = read_imm16(); var ip = pop16(); switch_seg(reg_cs, pop16()); instruction_pointer = get_seg(reg_cs) + ip | 0; reg16[reg_sp] += imm16; } }; table32[0xCA] = function() { { /* retf*/ var imm16 = read_imm16(); if(protected_mode) { /*dbg_log("retf");*/ var ip = pop32s(); switch_seg(reg_cs, pop32s() & 0xFFFF); instruction_pointer = get_seg(reg_cs) + ip | 0; stack_reg[reg_vsp] += imm16; } else { throw unimpl("32 bit retf in real mode"); } } };;
+table16[0xCB] = function() { { /* retf*/ if(protected_mode) { throw unimpl("16 bit retf in protected mode"); } else { var ip = pop16(); switch_seg(reg_cs, pop16()); instruction_pointer = get_seg(reg_cs) + ip | 0; } } }; table32[0xCB] = function() { { /* retf*/ if(protected_mode) { var ip = pop32s(); switch_seg(reg_cs, pop32s() & 0xFFFF); instruction_pointer = get_seg(reg_cs) + ip | 0; } else { var ip = pop32s(); switch_seg(reg_cs, pop32s() & 0xFFFF); instruction_pointer = get_seg(reg_cs) + ip | 0; } } };;
 table16[0xCC] = table32[0xCC] = function() { { /* INT3*/ call_interrupt_vector(3, true, false); } };;
-table16[0xCD] = table32[0xCD] = function() { { /* INT */ var imm8 = read_imm8(); call_interrupt_vector(imm8, true, false); } };;
+table16[0xCD] = table32[0xCD] = function() { { /* INT*/ var imm8 = read_imm8(); call_interrupt_vector(imm8, true, false); } };;
 table16[0xCE] = table32[0xCE] = function() { { /* INTO*/ if(getof()) { call_interrupt_vector(4, true, false); } } };;
-table16[0xCF] = function() { { /* iret*/ if(protected_mode) { throw unimpl("16 bit iret in protected mode"); } var ip = pop16(); switch_seg(reg_cs, pop16()); var new_flags = pop16(); instruction_pointer = ip + get_seg(reg_cs) | 0; flags = new_flags; flags_changed = 0; handle_irqs(); } }; table32[0xCF] = function() { { /* iret*/ if(!protected_mode) { throw unimpl("32 bit iret in real mode"); } else { if(flags & flag_nt) { if(DEBUG) throw "unimplemented nt"; } if(flags & flag_vm) { if(DEBUG) throw "unimplemented vm"; } } /*dbg_log("pop eip from " + h(reg32[reg_esp], 8));*/ instruction_pointer = pop32s(); /*dbg_log("IRET | from " + h(previous_ip) + " to " + h(instruction_pointer));*/ sreg[reg_cs] = pop32s(); /*instruction_pointer += get_seg(reg_cs);*/ var new_flags = pop32s(); if(new_flags & flag_vm) { if(DEBUG) throw "unimplemented"; } /* protected mode return*/ var info = lookup_segment_selector(sreg[reg_cs]); if(info.is_null) { throw unimpl("is null"); } if(!info.is_present) { throw unimpl("not present"); } if(!info.is_executable) { throw unimpl("not exec"); } if(info.rpl < cpl) { throw unimpl("rpl < cpl"); } if(info.dc_bit && info.dpl > info.rpl) { throw unimpl("conforming and dpl > rpl"); } if(info.rpl > cpl) { /* outer privilege return*/ var temp_esp = pop32s(); var temp_ss = pop32s(); reg32[reg_esp] = temp_esp; update_flags(new_flags); cpl = info.rpl; switch_seg(reg_ss, temp_ss & 0xFFFF); /*dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) + */ /*        " cs:eip=" + h(sreg[reg_cs],4) + ":" + h(get_real_ip(), 8) +*/ /*        " ss:esp=" + h(temp_ss & 0xFFFF, 2) + ":" + h(temp_esp, 8), LOG_CPU);*/ cpl_changed(); } else { update_flags(new_flags); /* same privilege return*/ /*dbg_log(h(new_flags) + " " + h(flags));*/ /*dbg_log("iret to " + h(instruction_pointer));*/ } /*dbg_log("iret if=" + (flags & flag_interrupt) + " cpl=" + cpl);*/ dbg_assert(!page_fault); handle_irqs(); } };;
+table16[0xCF] = function() { { /* iret*/ if(protected_mode) { throw unimpl("16 bit iret in protected mode"); } var ip = pop16(); switch_seg(reg_cs, pop16()); var new_flags = pop16(); instruction_pointer = ip + get_seg(reg_cs) | 0; flags = new_flags; flags_changed = 0; handle_irqs(); } }; table32[0xCF] = function() { { /* iret*/ if(!protected_mode) { throw unimpl("32 bit iret in real mode"); } else { if(flags & flag_nt) { if(DEBUG) throw "unimplemented nt"; } if(flags & flag_vm) { if(DEBUG) throw "unimplemented vm"; } } /*dbg_log("pop eip from " + h(reg32[reg_esp], 8));*/ instruction_pointer = pop32s(); /*dbg_log("IRET | from " + h(previous_ip) + " to " + h(instruction_pointer));*/ sreg[reg_cs] = pop32s(); /*instruction_pointer += get_seg(reg_cs);*/ var new_flags = pop32s(); if(new_flags & flag_vm) { if(DEBUG) throw "unimplemented"; } /* protected mode return*/ var info = lookup_segment_selector(sreg[reg_cs]); if(info.is_null) { throw unimpl("is null"); } if(!info.is_present) { throw unimpl("not present"); } if(!info.is_executable) { throw unimpl("not exec"); } if(info.rpl < cpl) { throw unimpl("rpl < cpl"); } if(info.dc_bit && info.dpl > info.rpl) { throw unimpl("conforming and dpl > rpl"); } if(info.rpl > cpl) { /* outer privilege return*/ var temp_esp = pop32s(); var temp_ss = pop32s(); reg32[reg_esp] = temp_esp; update_flags(new_flags); cpl = info.rpl; switch_seg(reg_ss, temp_ss & 0xFFFF); /*dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) +*/ /*        " cs:eip=" + h(sreg[reg_cs],4) + ":" + h(get_real_ip(), 8) +*/ /*        " ss:esp=" + h(temp_ss & 0xFFFF, 2) + ":" + h(temp_esp, 8), LOG_CPU);*/ cpl_changed(); } else { update_flags(new_flags); /* same privilege return*/ /*dbg_log(h(new_flags) + " " + h(flags));*/ /*dbg_log("iret to " + h(instruction_pointer));*/ } /*dbg_log("iret if=" + (flags & flag_interrupt) + " cpl=" + cpl);*/ dbg_assert(!page_fault); handle_irqs(); } };;
 table16[0xD0] = table32[0xD0] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rol8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = rol8(data, 1); }; }; break; case 1: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, ror8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = ror8(data, 1); }; }; break; case 2: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcl8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = rcl8(data, 1); }; }; break; case 3: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcr8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = rcr8(data, 1); }; }; break; case 4: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = shl8(data, 1); }; }; break; case 5: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shr8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = shr8(data, 1); }; }; break; case 6: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = shl8(data, 1); }; }; break; case 7: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, sar8(data, 1)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = sar8(data, 1); }; }; break; } } };;
 table16[0xD1] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, rol16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, rol16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = rol16(data, 1); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, ror16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, ror16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = ror16(data, 1); }; }; break; case 2: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, rcl16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, rcl16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = rcl16(data, 1); }; }; break; case 3: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, rcr16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, rcr16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = rcr16(data, 1); }; }; break; case 4: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, shl16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, shl16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = shl16(data, 1); }; }; break; case 5: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, shr16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, shr16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = shr16(data, 1); }; }; break; case 6: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, shl16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, shl16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = shl16(data, 1); }; }; break; case 7: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, sar16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, sar16(data, 1)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = sar16(data, 1); }; }; break; } } }; table32[0xD1] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, rol32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, rol32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = rol32(data, 1); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, ror32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, ror32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = ror32(data, 1); }; }; break; case 2: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, rcl32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, rcl32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = rcl32(data, 1); }; }; break; case 3: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, rcr32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, rcr32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = rcr32(data, 1); }; }; break; case 4: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, shl32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, shl32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = shl32(data, 1); }; }; break; case 5: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, shr32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, shr32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = shr32(data, 1); }; }; break; case 6: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, shl32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, shl32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = shl32(data, 1); }; }; break; case 7: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, sar32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, sar32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = sar32(data, 1); }; }; break; } } };;
 table16[0xD2] = table32[0xD2] = function() { var modrm_byte = read_imm8(); { var shift = reg8[reg_cl] & 31; switch(modrm_byte >> 3 & 7) { case 0: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rol8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = rol8(data, shift); }; }; break; case 1: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, ror8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = ror8(data, shift); }; }; break; case 2: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcl8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = rcl8(data, shift); }; }; break; case 3: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcr8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = rcr8(data, shift); }; }; break; case 4: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = shl8(data, shift); }; }; break; case 5: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shr8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = shr8(data, shift); }; }; break; case 6: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = shl8(data, shift); }; }; break; case 7: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, sar8(data, shift)); } else { data = reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]; reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = sar8(data, shift); }; }; break; } } };;
@@ -5797,7 +5809,7 @@ table16[0xFE] = table32[0xFE] = function() { var modrm_byte = read_imm8(); { var
 table16[0xFF] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, inc16(data)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, inc16(data)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = inc16(data); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, dec16(data)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, dec16(data)); } } else { data = reg16[modrm_byte << 1 & 14]; reg16[modrm_byte << 1 & 14] = dec16(data); }; }; break; case 2: { /* 2, call near*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; push16(get_real_ip()); instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 3: { /* 3, callf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); push16(sreg[reg_cs]); push16(get_real_ip()); switch_seg(reg_cs, safe_read16(virt_addr + 2)); instruction_pointer = get_seg(reg_cs) + safe_read16(virt_addr) | 0; dbg_assert(!page_fault); }; break; case 4: { /* 4, jmp near*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 5: { /* 5, jmpf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); switch_seg(reg_cs, safe_read16(virt_addr + 2)); instruction_pointer = get_seg(reg_cs) + safe_read16(virt_addr) | 0; /* TODO safe read*/ }; break; case 6: { /* 6, push*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; push16(data); }; break; case 7: { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; }; break; } } }; table32[0xFF] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, inc32(data)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, inc32(data)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = inc32(data); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, dec32(data)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, dec32(data)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = dec32(data); }; }; break; case 2: { /* 2, call near*/ if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; push32(get_real_ip()); instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 3: { /* 3, callf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); var new_cs = safe_read16(virt_addr + 4); var new_ip = safe_read32s(virt_addr); push32(sreg[reg_cs]); push32(get_real_ip()); switch_seg(reg_cs, new_cs); instruction_pointer = get_seg(reg_cs) + new_ip | 0; }; break; case 4: { /* 4, jmp near*/ if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 5: { /* 5, jmpf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); var new_cs = safe_read16(virt_addr + 4); var new_ip = safe_read32s(virt_addr); switch_seg(reg_cs, new_cs); instruction_pointer = get_seg(reg_cs) + new_ip | 0; }; break; case 6: { /* push*/ if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; push32(data); }; break; case 7: { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; }; break; } } };;
 // 0F ops start here
 table0F_16[0x00] = table0F_32[0x00] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; if(!protected_mode) { /* No GP, UD is correct*/ trigger_ud(); } if(cpl) { trigger_gp(0); } switch(modrm_byte >> 3 & 7) { case 2: load_ldt(data); break; case 3: load_tr(data); break; default: dbg_log(modrm_byte >> 3 & 7, LOG_CPU); if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; } } };;
-table0F_16[0x01] = table0F_32[0x01] = function() { var modrm_byte = read_imm8(); { if(cpl) { trigger_gp(0); } var mod = modrm_byte >> 3 & 7; if(mod === 4) { /* smsw*/ if(modrm_byte < 0xC0) { safe_write16(modrm_resolve(modrm_byte), cr0); } else { reg16[modrm_byte << 1 & 14] = cr0; }; return; } else if(mod === 6) { /* lmsw*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; cr0 = (cr0 & ~0xF) | (data & 0xF); cr0_changed(); return; } if(modrm_byte >= 0xC0) { /* only memory*/ raise_exception(6); dbg_assert(false); } if((mod === 2 || mod === 3) && protected_mode) { /* override prefix, so modrm_resolve does not return the segment part*/ /* only lgdt and lidt and only in protected mode*/ segment_prefix = reg_noseg; } var addr = modrm_resolve(modrm_byte); segment_prefix = -1; switch(mod) { case 0: /* sgdt*/ safe_write16(addr, gdtr_size); safe_write32(addr + 2, gdtr_offset); break; case 1: /* sidt*/ safe_write16(addr, idtr_size); safe_write32(addr + 2, idtr_offset); break; case 2: /* lgdt*/ var size = safe_read16(addr); var offset = safe_read32s(addr + 2); gdtr_size = size; gdtr_offset = offset; if(!operand_size_32) { gdtr_offset &= 0xFFFFFF; } dbg_log("eax " + h(reg32[reg_eax]), LOG_CPU); dbg_log("gdt loaded from " + h(addr), LOG_CPU); dbg_log("gdt at " + h(gdtr_offset) + ", " + gdtr_size + " bytes", LOG_CPU); /*dump_gdt_ldt();*/ break; case 3: /* lidt*/ var size = safe_read16(addr); var offset = safe_read32s(addr + 2); idtr_size = size; idtr_offset = offset; if(!operand_size_32) { idtr_offset &= 0xFFFFFF; } /*dbg_log("[" + h(instruction_pointer) + "] idt at " + */ /*        h(idtr_offset) + ", " + idtr_size + " bytes " + h(addr), LOG_CPU);*/ break; case 7: /* flush translation lookaside buffer*/ invlpg(addr); break; default: dbg_log(mod); if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; } } };;
+table0F_16[0x01] = table0F_32[0x01] = function() { var modrm_byte = read_imm8(); { if(cpl) { trigger_gp(0); } var mod = modrm_byte >> 3 & 7; if(mod === 4) { /* smsw*/ if(modrm_byte < 0xC0) { safe_write16(modrm_resolve(modrm_byte), cr0); } else { reg16[modrm_byte << 1 & 14] = cr0; }; return; } else if(mod === 6) { /* lmsw*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; cr0 = (cr0 & ~0xF) | (data & 0xF); cr0_changed(); return; } if(modrm_byte >= 0xC0) { /* only memory*/ raise_exception(6); dbg_assert(false); } if((mod === 2 || mod === 3) && protected_mode) { /* override prefix, so modrm_resolve does not return the segment part*/ /* only lgdt and lidt and only in protected mode*/ segment_prefix = reg_noseg; } var addr = modrm_resolve(modrm_byte); segment_prefix = -1; switch(mod) { case 0: /* sgdt*/ safe_write16(addr, gdtr_size); safe_write32(addr + 2, gdtr_offset); break; case 1: /* sidt*/ safe_write16(addr, idtr_size); safe_write32(addr + 2, idtr_offset); break; case 2: /* lgdt*/ var size = safe_read16(addr); var offset = safe_read32s(addr + 2); gdtr_size = size; gdtr_offset = offset; if(!operand_size_32) { gdtr_offset &= 0xFFFFFF; } dbg_log("eax " + h(reg32[reg_eax]), LOG_CPU); dbg_log("gdt loaded from " + h(addr), LOG_CPU); dbg_log("gdt at " + h(gdtr_offset) + ", " + gdtr_size + " bytes", LOG_CPU); /*dump_gdt_ldt();*/ break; case 3: /* lidt*/ var size = safe_read16(addr); var offset = safe_read32s(addr + 2); idtr_size = size; idtr_offset = offset; if(!operand_size_32) { idtr_offset &= 0xFFFFFF; } /*dbg_log("[" + h(instruction_pointer) + "] idt at " +*/ /*        h(idtr_offset) + ", " + idtr_size + " bytes " + h(addr), LOG_CPU);*/ break; case 7: /* flush translation lookaside buffer*/ invlpg(addr); break; default: dbg_log(mod); if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; } } };;
 table0F_16[0x02] = table0F_32[0x02] = function() { var modrm_byte = read_imm8(); { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; /* lar*/ } };;
 table0F_16[0x03] = table0F_32[0x03] = function() { var modrm_byte = read_imm8(); { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; /* lsl*/ } };;
 table0F_16[0x04] = table0F_32[0x04] = function() { { if(DEBUG) throw "Possible fault: undefined instruction"; trigger_ud();} };;
@@ -5821,7 +5833,7 @@ table0F_16[0x14] = table0F_32[0x14] = function() { { dbg_log("No SSE", LOG_CPU);
 table0F_16[0x15] = table0F_32[0x15] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0x16] = table0F_32[0x16] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0x17] = table0F_32[0x17] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
-table0F_16[0x18] = table0F_32[0x18] = function() { var modrm_byte = read_imm8(); { /* prefetch*/ /* nop for us */ if(operand_size_32) { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; } else { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; } } };;
+table0F_16[0x18] = table0F_32[0x18] = function() { var modrm_byte = read_imm8(); { /* prefetch*/ /* nop for us*/ if(operand_size_32) { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; } else { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[modrm_byte << 1 & 14]; }; } } };;
 table0F_16[0x19] = table0F_32[0x19] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0x1A] = table0F_32[0x1A] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0x1B] = table0F_32[0x1B] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
@@ -5920,8 +5932,8 @@ table0F_16[0x80 | 0x0] = function() { { jmpcc16((test_o())); } }; table0F_32[0x8
 table0F_16[0x90 | 0x0] = table0F_32[0x90 | 0x0] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_o()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_o()) ^ 1; }; } };;; table0F_16[0x90 | 0x1] = table0F_32[0x90 | 0x1] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_o()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_o()) ^ 1; }; } };;; table0F_16[0x90 | 0x2] = table0F_32[0x90 | 0x2] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_b()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_b()) ^ 1; }; } };;; table0F_16[0x90 | 0x3] = table0F_32[0x90 | 0x3] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_b()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_b()) ^ 1; }; } };;; table0F_16[0x90 | 0x4] = table0F_32[0x90 | 0x4] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_z()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_z()) ^ 1; }; } };;; table0F_16[0x90 | 0x5] = table0F_32[0x90 | 0x5] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_z()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_z()) ^ 1; }; } };;; table0F_16[0x90 | 0x6] = table0F_32[0x90 | 0x6] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_be()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_be()) ^ 1; }; } };;; table0F_16[0x90 | 0x7] = table0F_32[0x90 | 0x7] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_be()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_be()) ^ 1; }; } };;; table0F_16[0x90 | 0x8] = table0F_32[0x90 | 0x8] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_s()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_s()) ^ 1; }; } };;; table0F_16[0x90 | 0x9] = table0F_32[0x90 | 0x9] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_s()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_s()) ^ 1; }; } };;; table0F_16[0x90 | 0xA] = table0F_32[0x90 | 0xA] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_p()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_p()) ^ 1; }; } };;; table0F_16[0x90 | 0xB] = table0F_32[0x90 | 0xB] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_p()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_p()) ^ 1; }; } };;; table0F_16[0x90 | 0xC] = table0F_32[0x90 | 0xC] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_l()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_l()) ^ 1; }; } };;; table0F_16[0x90 | 0xD] = table0F_32[0x90 | 0xD] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_l()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_l()) ^ 1; }; } };;; table0F_16[0x90 | 0xE] = table0F_32[0x90 | 0xE] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(test_le()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(test_le()) ^ 1; }; } };;; table0F_16[0x90 | 0xF] = table0F_32[0x90 | 0xF] = function() { var modrm_byte = read_imm8(); { if(modrm_byte < 0xC0) { safe_write8(modrm_resolve(modrm_byte), !(!test_le()) ^ 1); } else { reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1] = !(!test_le()) ^ 1; }; } };;;;
 table0F_16[0xA0] = function() { { push16(sreg[reg_fs]); } }; table0F_32[0xA0] = function() { { push32(sreg[reg_fs]); } };;
 table0F_16[0xA1] = function() { { switch_seg(reg_fs, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; } }; table0F_32[0xA1] = function() { { switch_seg(reg_fs, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; } };;;
-//op2(0xA1, 
-//    { safe_pop16(sreg[reg_fs]); switch_seg(reg_fs); }, 
+//op2(0xA1,
+//    { safe_pop16(sreg[reg_fs]); switch_seg(reg_fs); },
 //    { safe_pop32s(sreg[reg_fs]); switch_seg(reg_fs); });
 table0F_16[0xA2] = table0F_32[0xA2] = function() { { cpuid(); } };;
 table0F_16[0xA3] = table0F_32[0xA3] = function() { var modrm_byte = read_imm8(); { if(operand_size_32) { if(modrm_byte < 0xC0) { bt_mem(modrm_resolve(modrm_byte), reg32s[modrm_byte >> 3 & 7]); } else { bt_reg(reg32[modrm_byte & 7], reg32[modrm_byte >> 3 & 7] & 31); } } else { if(modrm_byte < 0xC0) { bt_mem(modrm_resolve(modrm_byte), reg16s[modrm_byte >> 2 & 14]); } else { bt_reg(reg16[modrm_byte << 1 & 14], reg16[modrm_byte >> 2 & 14] & 15); } } } };;
@@ -5931,8 +5943,8 @@ table0F_16[0xA6] = table0F_32[0xA6] = function() { { if(DEBUG) throw "Possible f
 table0F_16[0xA7] = table0F_32[0xA7] = function() { { if(DEBUG) throw "Possible fault: undefined instruction"; trigger_ud();} };;
 table0F_16[0xA8] = function() { { push16(sreg[reg_gs]); } }; table0F_32[0xA8] = function() { { push32(sreg[reg_gs]); } };;
 table0F_16[0xA9] = function() { { switch_seg(reg_gs, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; } }; table0F_32[0xA9] = function() { { switch_seg(reg_gs, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; } };;;
-//op2(0xA9, 
-//    { safe_pop16(sreg[reg_gs]); switch_seg(reg_gs); }, 
+//op2(0xA9,
+//    { safe_pop16(sreg[reg_gs]); switch_seg(reg_gs); },
 //    { safe_pop32s(sreg[reg_gs]); switch_seg(reg_gs); });
 // rsm
 table0F_16[0xAA] = table0F_32[0xAA] = function() { { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();;} };;
