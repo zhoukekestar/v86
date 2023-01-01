@@ -16,6 +16,7 @@ const loadFile = url => fetch(url).then(d => d.arrayBuffer());
 
 
   const cpu = new v86();
+  window.cpu = cpu;
 
   settings.screen_adapter = new ScreenAdapter();
   settings.keyboard_adapter = new KeyboardAdapter();

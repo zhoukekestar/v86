@@ -17,7 +17,7 @@
 
       for (var i = 0; i < files.length; i++) {
         script = document.createElement('script');
-        script.src = PATH + files[i] + '?' + Math.random();
+        script.src = PATH + files[i];
         document.body.appendChild(script);
       }
     }

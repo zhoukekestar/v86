@@ -2,10 +2,10 @@
 
 
 
-var table16 = [], 
-    table32 = [], 
-    table0F_16 = [],
-    table0F_32 = [];
+var table16 = [],       // 16 位模式下的操作指令集映射
+    table32 = [],       // 32 位模式下的操作指令集映射
+    table0F_16 = [],    // 16 位模式下的 2 字节操作指令集映射，参考 http://ref.x86asm.net/#column_0F，OF 为指令前缀
+    table0F_32 = [];    // 32 位模式下的 2 字节操作指令集映射
 
 
 #define do_op() table[read_imm8()]()
@@ -144,13 +144,13 @@ var table16 = [],
 
 #define reg_e16 reg16[modrm_byte << 1 & 14]
 #define reg_e16s reg16s[modrm_byte << 1 & 14]
-#define reg_g16 reg16[modrm_byte >> 2 & 14] 
-#define reg_g16s reg16s[modrm_byte >> 2 & 14] 
+#define reg_g16 reg16[modrm_byte >> 2 & 14]
+#define reg_g16s reg16s[modrm_byte >> 2 & 14]
 
 #define reg_e32 reg32[modrm_byte & 7]
 #define reg_e32s reg32s[modrm_byte & 7]
-#define reg_g32 reg32[modrm_byte >> 3 & 7] 
-#define reg_g32s reg32s[modrm_byte >> 3 & 7] 
+#define reg_g32 reg32[modrm_byte >> 3 & 7]
+#define reg_g32s reg32s[modrm_byte >> 3 & 7]
 
 
 #define modrm_read(size)\
@@ -170,7 +170,7 @@ var table16 = [],
 
 
 
-// use modrm_byte to write a value to memory or register 
+// use modrm_byte to write a value to memory or register
 // (without reading it beforehand)
 #define modrm_set(arg, size) \
     if(modrm_byte < 0xC0) {\
@@ -290,7 +290,7 @@ var table16 = [],
     opm2(n | 3, { read_e16; reg_g16 = instr ## 16(reg_g16, data); }, { read_e32 ## sign; reg_g32s = instr ## 32(reg_g32 ## sign, data); })\
     op(n | 4, { reg8[reg_al] = instr ## 8(reg8[reg_al], read_imm8()); })\
     op2(n | 5, { reg16[reg_ax] = instr ## 16(reg16[reg_ax], read_imm16()); }, { reg32[reg_eax] = instr ## 32(reg32 ## sign[reg_eax], read_imm32 ## sign()); })\
-    
+
 
 
 // instructions start here
@@ -299,8 +299,8 @@ arith_group(0x00, add, );
 
 op2(0x06, { push16(sreg[reg_es]); }, { push32(sreg[reg_es]); });
 pop_sreg_op(0x07, reg_es);
-//op2(0x07, 
-//    { safe_pop16(sreg[reg_es]); switch_seg(reg_es, memory.read16(get_esp_read(0))); }, 
+//op2(0x07,
+//    { safe_pop16(sreg[reg_es]); switch_seg(reg_es, memory.read16(get_esp_read(0))); },
 //    { safe_pop32s(sreg[reg_es]); switch_seg(reg_es); });
 
 arith_group(0x08, or, s);
@@ -312,16 +312,16 @@ arith_group(0x10, adc, );
 
 op2(0x16, { push16(sreg[reg_ss]); }, { push32(sreg[reg_ss]); });
 pop_sreg_op(0x17, reg_ss);
-//op2(0x17, 
-//    { safe_pop16(sreg[reg_ss]); switch_seg(reg_ss); }, 
+//op2(0x17,
+//    { safe_pop16(sreg[reg_ss]); switch_seg(reg_ss); },
 //    { safe_pop32s(sreg[reg_ss]); switch_seg(reg_ss); });
 
 arith_group(0x18, sbb, );
 
 op2(0x1E, { push16(sreg[reg_ds]); }, { push32(sreg[reg_ds]); });
 pop_sreg_op(0x1F, reg_ds);
-//op2(0x1F, 
-//    { safe_pop16(sreg[reg_ds]); switch_seg(reg_ds); }, 
+//op2(0x1F,
+//    { safe_pop16(sreg[reg_ds]); switch_seg(reg_ds); },
 //    { safe_pop32s(sreg[reg_ds]); switch_seg(reg_ds); });
 
 arith_group(0x20, and, s);
@@ -373,7 +373,7 @@ op2(0x60, { pusha16(); }, { pusha32(); });
 op2(0x61, { popa16(); }, { popa32(); });
 
 op(0x62, { throw unimpl("bound instruction"); });
-opm(0x63, { 
+opm(0x63, {
     // arpl
     write_ev16(arpl(data, modrm_byte >> 2 & 14));
 });
@@ -444,7 +444,7 @@ op2(0x6F, { outsw(); }, { outsd(); });
 each_jcc(group70);
 
 
-opm(0x80, { 
+opm(0x80, {
     sub_op(
         { write_e8(add8(data, read_imm8())); },
         { write_e8( or8(data, read_imm8())); },
@@ -479,7 +479,7 @@ opm2(0x81, {
         { read_e32;  cmp32(data, read_imm32()); }
     )
 });
-op(0x82, { 
+op(0x82, {
     table[0x80](); // alias
 });
 opm2(0x83, {
@@ -511,10 +511,10 @@ opm2(0x85, { read_e16; test16(data, reg_g16); }, { read_e32s; test32(data, reg_g
 
 
 opm(0x86, { write_e8(xchg8(data, modrm_byte)); });
-opm2(0x87, { 
-    write_ev16(xchg16(data, modrm_byte)); 
+opm2(0x87, {
+    write_ev16(xchg16(data, modrm_byte));
 }, {
-    write_ev32(xchg32(data, modrm_byte)); 
+    write_ev32(xchg32(data, modrm_byte));
 });
 
 opm(0x88, { set_eb(reg_g8); })
@@ -576,14 +576,14 @@ each_reg(group90)
 op(0x90,  /* nop */ );
 
 
-op2(0x98, 
+op2(0x98,
     { /* cbw */ reg16[reg_ax] = reg8s[reg_al]; },
     { /* cwde */ reg32[reg_eax] = reg16s[reg_ax]; });
 
-op2(0x99, 
+op2(0x99,
     { /* cwd */ reg16[reg_dx] = reg16s[reg_ax] >> 15; },
     { /* cdq */ reg32[reg_edx] = reg32s[reg_eax] >> 31; });
-    
+
 op2(0x9A, {
     // callf
 
@@ -713,7 +713,7 @@ each_reg8(groupB0);
 each_reg(groupB8);
 
 
-opm(0xC0, { 
+opm(0xC0, {
     sub_op(
         { write_e8(rol8(data, read_imm8() & 31)); },
         { write_e8(ror8(data, read_imm8() & 31)); },
@@ -725,7 +725,7 @@ opm(0xC0, {
         { write_e8(sar8(data, read_imm8() & 31)); }
     )
 });
-opm2(0xC1, { 
+opm2(0xC1, {
     sub_op(
         { write_ev16(rol16(data, read_imm8() & 31)); },
         { write_ev16(ror16(data, read_imm8() & 31)); },
@@ -803,7 +803,7 @@ op2(0xCA, {
     instruction_pointer = get_seg(reg_cs) + ip | 0;
     reg16[reg_sp] += imm16;
 }, {
-    // retf 
+    // retf
     var imm16 = read_imm16();
 
     if(protected_mode)
@@ -834,7 +834,7 @@ op2(0xCB, {
         instruction_pointer = get_seg(reg_cs) + ip | 0;
     }
 }, {
-    // retf 
+    // retf
 
     if(protected_mode)
     {
@@ -857,7 +857,7 @@ op(0xCC, {
     call_interrupt_vector(3, true, false);
 });
 op(0xCD, {
-    // INT 
+    // INT
     var imm8 = read_imm8();
 
     call_interrupt_vector(imm8, true, false);
@@ -958,7 +958,7 @@ op2(0xCF, {
         cpl = info.rpl;
         switch_seg(reg_ss, temp_ss & 0xFFFF);
 
-        //dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) + 
+        //dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) +
         //        " cs:eip=" + h(sreg[reg_cs],4) + ":" + h(get_real_ip(), 8) +
         //        " ss:esp=" + h(temp_ss & 0xFFFF, 2) + ":" + h(temp_esp, 8), LOG_CPU);
 
@@ -980,7 +980,7 @@ op2(0xCF, {
 
 });
 
-opm(0xD0, { 
+opm(0xD0, {
     sub_op(
         { write_e8(rol8(data, 1)); },
         { write_e8(ror8(data, 1)); },
@@ -992,7 +992,7 @@ opm(0xD0, {
         { write_e8(sar8(data, 1)); }
     )
 });
-opm2(0xD1, { 
+opm2(0xD1, {
     sub_op(
         { write_ev16(rol16(data, 1)); },
         { write_ev16(ror16(data, 1)); },
@@ -1016,7 +1016,7 @@ opm2(0xD1, {
     )
 });
 
-opm(0xD2, { 
+opm(0xD2, {
     var shift = reg8[reg_cl] & 31;
     sub_op(
         { write_e8(rol8(data, shift)); },
@@ -1029,7 +1029,7 @@ opm(0xD2, {
         { write_e8(sar8(data, shift)); }
     )
 });
-opm2(0xD3, { 
+opm2(0xD3, {
     var shift = reg8[reg_cl] & 31;
     sub_op(
         { write_ev16(rol16(data, shift)); },
@@ -1302,11 +1302,11 @@ opm(0xFE, {
 
     if(mod === 0)
     {
-        write_e8(inc8(data)); 
+        write_e8(inc8(data));
     }
     else if(mod === 8)
     {
-        write_e8(dec8(data)); 
+        write_e8(dec8(data));
     }
     else
     {
@@ -1317,11 +1317,11 @@ opm2(0xFF, {
     sub_op(
         { write_ev16(inc16(data)); },
         { write_ev16(dec16(data)); },
-        { 
+        {
             // 2, call near
             read_e16;
             push16(get_real_ip());
-            
+
             instruction_pointer = get_seg(reg_cs) + data | 0;
         },
         {
@@ -1375,7 +1375,7 @@ opm2(0xFF, {
 
         { write_ev32(inc32(data)); },
         { write_ev32(dec32(data)); },
-        { 
+        {
             // 2, call near
             read_e32s;
             push32(get_real_ip());
@@ -1501,7 +1501,7 @@ opm(0x01, {
     {
         // override prefix, so modrm_resolve does not return the segment part
         // only lgdt and lidt and only in protected mode
-        segment_prefix = reg_noseg; 
+        segment_prefix = reg_noseg;
     }
 
     var addr = modrm_resolve(modrm_byte);
@@ -1550,7 +1550,7 @@ opm(0x01, {
                 idtr_offset &= 0xFFFFFF;
             }
 
-            //dbg_log("[" + h(instruction_pointer) + "] idt at " + 
+            //dbg_log("[" + h(instruction_pointer) + "] idt at " +
             //        h(idtr_offset) + ", " + idtr_size + " bytes " + h(addr), LOG_CPU);
             break;
         case 7:
@@ -1624,7 +1624,7 @@ unimplemented_sse(0x17);
 
 opm(0x18, {
     // prefetch
-    // nop for us 
+    // nop for us
     if(operand_size_32) {
         read_e32s;
     }
@@ -1713,7 +1713,7 @@ opm(0x22, {
             cr0_changed();
             //dbg_log("cr1 = " + bits(memory.read32s(addr)), LOG_CPU);
             break;
-        case 3: 
+        case 3:
             cr3 = data;
             dbg_assert((cr3 & 0xFFF) === 0);
             clear_tlb();
@@ -1730,7 +1730,7 @@ opm(0x22, {
             cr4 = data;
             page_size_extensions = (cr4 & 16) ? PSE_ENABLED : 0;
             dbg_log("cr4 set to " + h(cr4), LOG_CPU);
-                
+
             break;
         default:
             dbg_log(modrm_byte >> 3 & 7);
@@ -1766,7 +1766,7 @@ todo_op(0x30);
 
 op(0x31, {
     // rdtsc - read timestamp counter
-    
+
     //var cycles = (Date.now() - emulation_start) / 1000 * 3000000;
     //reg32[reg_eax] = cycles;
     //reg32[reg_edx] = cycles / 0x100000000;
@@ -1882,8 +1882,8 @@ each_jcc(group0F90);
 
 op2(0xA0, { push16(sreg[reg_fs]); }, { push32(sreg[reg_fs]); });
 pop_sreg_op(0xA1, reg_fs);
-//op2(0xA1, 
-//    { safe_pop16(sreg[reg_fs]); switch_seg(reg_fs); }, 
+//op2(0xA1,
+//    { safe_pop16(sreg[reg_fs]); switch_seg(reg_fs); },
 //    { safe_pop32s(sreg[reg_fs]); switch_seg(reg_fs); });
 
 op(0xA2, { cpuid(); });
@@ -1929,8 +1929,8 @@ undefined_instruction(0xA7);
 
 op2(0xA8, { push16(sreg[reg_gs]); }, { push32(sreg[reg_gs]); });
 pop_sreg_op(0xA9, reg_gs);
-//op2(0xA9, 
-//    { safe_pop16(sreg[reg_gs]); switch_seg(reg_gs); }, 
+//op2(0xA9,
+//    { safe_pop16(sreg[reg_gs]); switch_seg(reg_gs); },
 //    { safe_pop32s(sreg[reg_gs]); switch_seg(reg_gs); });
 
 // rsm
@@ -2023,7 +2023,7 @@ opm(0xB1, {
         }
         else
             data = reg_e16;
-        
+
         cmp16(data, reg16[reg_ax]);
 
         if(getzf())
@@ -2041,7 +2041,7 @@ opm(0xB1, {
 });
 
 // lss
-opm(0xB2, { 
+opm(0xB2, {
     lss_op(reg_ss);
 });
 
@@ -2050,7 +2050,7 @@ opm(0xB3, {
 });
 
 // lfs, lgs
-opm(0xB4, { 
+opm(0xB4, {
     lss_op(reg_fs);
 });
 opm(0xB5, {
@@ -2176,7 +2176,7 @@ unimplemented_sse(0xC6);
 opm(0xC7, {
     // cmpxchg8b
     var addr = modrm_resolve(modrm_byte);
-    
+
     var m64_low = safe_read32(addr);
     var m64_high = safe_read32(addr + 4);
 
