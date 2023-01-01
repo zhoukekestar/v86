@@ -516,7 +516,7 @@ function cpu_init(settings)
     segment_prefix = -1;
     repeat_string_prefix = false;
     last_result = 0;
-    flags = flags_default;
+    flags = FLAG_DEFAULT;
     flags_changed = 0;
     last_op1 = 0;
     last_op2 = 0;
@@ -1099,7 +1099,7 @@ function read_moffs()
 
 function get_flags()
 {
-    return (flags & ~flags_all) | getcf() | getpf() | getaf() | getzf() | getsf() | getof();
+    return (flags & ~FLAG_ALL_ARITHMETIC) | getcf() | getpf() | getaf() | getzf() | getsf() | getof();
 }
 
 function load_flags()

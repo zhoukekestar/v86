@@ -2,7 +2,7 @@
 const loadFile = url => fetch(url).then(d => d.arrayBuffer());
 
 !(async () => {
-  window.DEBUG = false;
+  // window.DEBUG = false;
   console.log('loading...');
 
   const settings = {
@@ -11,8 +11,11 @@ const loadFile = url => fetch(url).then(d => d.arrayBuffer());
   settings.bios = await loadFile('/bios/seabios.bin');
   settings.vga_bios = await loadFile('/bios/vgabios.bin');
 
-  settings.floppy_disk = new SyncBuffer(await loadFile('/images/windows101.img'));
-  // settings.cdrom_disk = new SyncBuffer(await loadFile('/images/linux.iso'));
+  if (/linux=1/.test(location.href)) {
+    settings.cdrom_disk = new SyncBuffer(await loadFile('/images/linux.iso'));
+  } else {
+    settings.floppy_disk = new SyncBuffer(await loadFile('/images/windows101.img'));
+  }
 
 
   const cpu = new v86();

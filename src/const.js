@@ -1,17 +1,17 @@
 
-/** @define {boolean} */            
+/** @define {boolean} */
 var DEBUG = true;
 
 
 var
 
-/** 
- * @const 
+/**
+ * @const
  * @type {number}
  */
 memory_size = 1024 * 1024 * 64;
 
-var 
+var
 
 /** @const */ LOG_ALL = -1,
 /** @const */ LOG_NONE = 0,
@@ -57,44 +57,47 @@ var
 /** @const */ TLB_USER_WRITE = 8;
 
 
-var 
+// 所有状态寄存器
+// 参考 2.3.4 Flags Register https://www.scs.stanford.edu/05au-cs240c/lab/i386/s02_03.htm
+const FLAG_MASK = 0b110111111111010111;
+
+// 默认状态寄存器的值，除了第一位是 1，其余都是 0
+// 参考 2.3.4 Flags Register https://www.scs.stanford.edu/05au-cs240c/lab/i386/s02_03.htm
+const FLAG_DEFAULT = 1 << 1;
+
+// 状态寄存器
+// 参考 2.3.4 Flags Register https://www.scs.stanford.edu/05au-cs240c/lab/i386/s02_03.htm
+let [
+  flag_carry,     /* 0 */
+  ,               /* 1 INTEL RESERVED 1 */
+  flag_parity,    /* 2 */
+  ,               /* 3 INTEL RESERVED 0 */
+  flag_adjust,    /* 4 AUXILIARY CARRY */
+  ,               /* 5 INTEL RESERVED 0 */
+  flag_zero,      /* 6 */
+  flag_sign,      /* 7 */
+  flag_trap,      /* 8 */
+  flag_interrupt, /* 9 INTERRUPT ENABLE */
+  flag_direction, /* 10 */
+  flag_overflow,  /* 11 */
+  flag_iopl1,     /* 12 I/O PRIVILEGE LEVEL */
+  flag_iopl2,     /* 13 I/O PRIVILEGE LEVEL */
+  flag_nt,        /* 14 NESTED TASK FLAG */
+  ,               /* 15 INTEL RESERVED 0 */
+  flag_resume,    /* 16 */
+  flag_vm,        /* 17 VIRTUAL 8086 MODE */
+] = FLAG_MASK.toString(2).split('').reverse().map((v, i) => v << i);
+
+// flag I/O PRIVILEGE LEVEL 占了两位
+let flag_iopl = flag_iopl1 | flag_iopl2;
+
+// 所有的算术标记位
+// all arithmetic flags
+const FLAG_ALL_ARITHMETIC = flag_carry | flag_parity | flag_adjust | flag_zero | flag_sign | flag_overflow;
 
 
-// flags register bitflags
-/** @const */ flag_carry = 1,
-/** @const */ flag_parity = 4,
-/** @const */ flag_adjust = 16,
-/** @const */ flag_zero = 64,
-/** @const */ flag_sign = 128, 
-/** @const */ flag_trap = 256,
-/** @const */ flag_interrupt = 512,
-/** @const */ flag_direction = 1024,
-/** @const */ flag_overflow = 2048,
-/** @const */ flag_iopl = 1 << 12 | 1 << 13,
-/** @const */ flag_nt = 1 << 14,
-/** @const */ flag_vm = 1 << 17,
 
-/** 
- * default values of unused flags bits
- * @const
- */
-flags_default = 1 << 1,
-
-/** 
- * bitmask to select used flags bits
- * @const
- */
-flags_mask = 1 << 0 | 1 << 2 | 1 << 4 | 1 << 6 | 1 << 7 | 1 << 8 | 1 << 9
-                        | 1 << 10 | 1 << 11 | 1 << 12 | 1 << 13 | 1 << 14 | 
-                        1 << 16 | 1 << 17 | 1 << 18 | 1 << 19 | 1 << 20 | 1 << 21,
-
-/**
- * all arithmetic flags
- * @const
- */
-flags_all = flag_carry | flag_parity | flag_adjust | flag_zero | flag_sign | flag_overflow,
-
-
+var
 
 /**
  * opsizes used by get flag functions

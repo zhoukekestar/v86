@@ -649,7 +649,7 @@ op2(0x9D, {
 op(0x9E, {
     // sahf
     flags = (flags & ~0xFF) | reg8[reg_ah];
-    flags = (flags & flags_mask) | flags_default;
+    flags = (flags & FLAG_MASK) | FLAG_DEFAULT;
     flags_changed = 0;
 });
 op(0x9F, {
