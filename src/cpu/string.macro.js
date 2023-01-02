@@ -17,9 +17,9 @@
     var src, dest, data_src, data_dest;\
     var size = flags & FLAG_DIRECTION ? -(s >> 3) : s >> 3;\
     var ds, es;\
-    if(use_cmp && !use_si) data_src = reg ## s[reg_eax];\
-    if(use_di) es = get_seg(reg_es), dest = es + regv[reg_vdi];\
-    if(use_si) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi];\
+    if(use_cmp && !use_si) data_src = reg ## s[REG_EAX_INDEX];\
+    if(use_di) es = get_seg(REG_ES_INDEX), dest = es + regv[reg_vdi];\
+    if(use_si) ds = get_seg_prefix(REG_DS_INDEX), src = ds + regv[reg_vsi];\
     if(repeat_string_prefix) {\
         if(regv[reg_vcx] === 0) return;\
         var aligned = s > 8 && (!use_di || (dest & (s >> 3) - 1) === 0) && (!use_si || (src & (s >> 3) - 1) === 0);\
@@ -111,7 +111,7 @@ function cmpsd()
 
 function stosb()
 {
-    var data = reg8[reg_al];
+    var data = reg8[REG_AL_INDEX];
 
     string_instruction(8, false, true, false,
         {
@@ -122,7 +122,7 @@ function stosb()
 
 function stosw()
 {
-    var data = reg16[reg_ax];
+    var data = reg16[REG_AX_INDEX];
 
     string_instruction(16, false, true, false,
         {
@@ -135,8 +135,8 @@ function stosw()
 
 function stosd()
 {
-    //dbg_log("stosd " + ((reg32[reg_edi] & 3) ? "mis" : "") + "aligned", LOG_CPU);
-    var data = reg32[reg_eax];
+    //dbg_log("stosd " + ((reg32[REG_EDI_INDEX] & 3) ? "mis" : "") + "aligned", LOG_CPU);
+    var data = reg32[REG_EAX_INDEX];
 
     string_instruction(32, false, true, false,
         {
@@ -151,7 +151,7 @@ function lodsb()
 {
     string_instruction(8, false, false, true,
         {
-            reg8[reg_al] = safe_read8(src);
+            reg8[REG_AL_INDEX] = safe_read8(src);
         }, {});
 }
 
@@ -160,9 +160,9 @@ function lodsw()
 {
     string_instruction(16, false, false, true,
         {
-            reg16[reg_ax] = safe_read16(src);
+            reg16[REG_AX_INDEX] = safe_read16(src);
         }, {
-            reg16[reg_ax] = safe_read16(src);
+            reg16[REG_AX_INDEX] = safe_read16(src);
         });
 }
 
@@ -171,9 +171,9 @@ function lodsd()
 {
     string_instruction(32, false, false, true,
         {
-            reg32[reg_eax] = safe_read32s(src);
+            reg32[REG_EAX_INDEX] = safe_read32s(src);
         }, {
-            reg32[reg_eax] = safe_read32s(src);
+            reg32[REG_EAX_INDEX] = safe_read32s(src);
         });
 }
 
@@ -209,7 +209,7 @@ function scasd()
 
 function insb()
 {
-    var port = reg16[reg_dx];
+    var port = reg16[REG_DX_INDEX];
 
     string_instruction(8, false, true, false,
         {
@@ -220,7 +220,7 @@ function insb()
 
 function insw()
 {
-    var port = reg16[reg_dx];
+    var port = reg16[REG_DX_INDEX];
 
     string_instruction(8, false, true, false,
         {
@@ -233,7 +233,7 @@ function insw()
 
 function insd()
 {
-    var port = reg16[reg_dx];
+    var port = reg16[REG_DX_INDEX];
 
     string_instruction(32, false, true, false,
         {
@@ -246,7 +246,7 @@ function insd()
 
 function outsb()
 {
-    var port = reg16[reg_dx];
+    var port = reg16[REG_DX_INDEX];
 
     string_instruction(8, false, false, true,
         {
@@ -258,7 +258,7 @@ function outsb()
 
 function outsw()
 {
-    var port = reg16[reg_dx];
+    var port = reg16[REG_DX_INDEX];
 
     string_instruction(16, false, false, true,
         {
@@ -270,7 +270,7 @@ function outsw()
 
 function outsd()
 {
-    var port = reg16[reg_dx];
+    var port = reg16[REG_DX_INDEX];
 
     string_instruction(32, false, false, true,
         {

@@ -99,7 +99,7 @@ function logop(_ip, op)
 
 function dump_stack(start, end)
 {
-    var esp = reg32[reg_esp];
+    var esp = reg32[REG_ES_INDEXP_INDEX];
     dbg_log("========= STACK ==========");
 
     if(end >= start || end === undefined)
@@ -123,10 +123,10 @@ function dump_stack(start, end)
 function dump_regs_short()
 {
     var
-        r32 = { "eax": reg_eax, "ecx": reg_ecx, "edx": reg_edx, "ebx": reg_ebx,
-                "esp": reg_esp, "ebp": reg_ebp, "esi": reg_esi, "edi": reg_edi },
+        r32 = { "eax": REG_EAX_INDEX, "ecx": REG_ECX_INDEX, "edx": REG_EDX_INDEX, "ebx": REG_EBX_INDEX,
+                "esp": REG_ES_INDEXP_INDEX, "ebp": REG_EBP_INDEX, "esi": REG_ES_INDEXI_INDEX, "edi": REG_EDI_INDEX },
         r32_names = ["eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"],
-        s = { "cs": reg_cs, "ds": reg_ds, "es": reg_es, "fs": reg_fs, "gs": reg_gs, "ss": reg_ss },
+        s = { "cs": REG_CS_INDEX, "ds": REG_DS_INDEX, "es": REG_ES_INDEX, "fs": REG_FS_INDEX, "gs": REG_GS_INDEX, "ss": REG_SS_INDEX },
         line1 = "",
         line2 = "";
 
@@ -141,8 +141,8 @@ function dump_regs_short()
     line1 += " eip=" + h(get_real_ip(), 8);
     line2 += " flg=" + h(get_flags());
 
-    line1 += "  ds=" + h(sreg[reg_ds], 4) + " es=" + h(sreg[reg_es], 4) + "  fs=" + h(sreg[reg_fs], 4);
-    line2 += "  gs=" + h(sreg[reg_gs], 4) + " cs=" + h(sreg[reg_cs], 4) + "  ss=" + h(sreg[reg_ss], 4);
+    line1 += "  ds=" + h(sreg[REG_DS_INDEX], 4) + " es=" + h(sreg[REG_ES_INDEX], 4) + "  fs=" + h(sreg[REG_FS_INDEX], 4);
+    line2 += "  gs=" + h(sreg[REG_GS_INDEX], 4) + " cs=" + h(sreg[REG_CS_INDEX], 4) + "  ss=" + h(sreg[REG_SS_INDEX], 4);
 
     dbg_log(line1);
     dbg_log(line2);
@@ -151,11 +151,11 @@ function dump_regs_short()
 function dump_regs()
 {
     var
-        r32 = { "eax": reg_eax, "ecx": reg_ecx, "edx": reg_edx, "ebx": reg_ebx,
-                "esp": reg_esp, "ebp": reg_ebp, "esi": reg_esi, "edi": reg_edi },
+        r32 = { "eax": REG_EAX_INDEX, "ecx": REG_ECX_INDEX, "edx": REG_EDX_INDEX, "ebx": REG_EBX_INDEX,
+                "esp": REG_ES_INDEXP_INDEX, "ebp": REG_EBP_INDEX, "esi": REG_ES_INDEXI_INDEX, "edi": REG_EDI_INDEX },
 
-        s = { "cs": reg_cs, "ds": reg_ds, "es": reg_es,
-              "fs": reg_fs, "gs": reg_gs, "ss": reg_ss },
+        s = { "cs": REG_CS_INDEX, "ds": REG_DS_INDEX, "es": REG_ES_INDEX,
+              "fs": REG_FS_INDEX, "gs": REG_GS_INDEX, "ss": REG_SS_INDEX },
 
         out = "";
 

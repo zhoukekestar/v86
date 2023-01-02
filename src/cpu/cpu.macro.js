@@ -498,8 +498,8 @@ function cpu_init(settings)
     update_address_size();
 
     stack_reg = reg16;
-    reg_vsp = reg_sp;
-    reg_vbp = reg_bp;
+    reg_vsp = REG_SP_INDEX;
+    reg_vbp = REG_BP_INDEX;
 
     cpu_timestamp_counter = 0;
     previous_ip = 0;
@@ -550,8 +550,8 @@ function cpu_init(settings)
         instruction_pointer = 0xFFFF0;
 
         // ss and sp inital value
-        switch_seg(reg_ss, 0x30);
-        reg16[reg_sp] = 0x100;
+        switch_seg(REG_SS_INDEX, 0x30);
+        reg16[REG_SP_INDEX] = 0x100;
     }
     else if(settings.linux)
     {
@@ -563,20 +563,20 @@ function cpu_init(settings)
         if(settings.linux.root)
         {
             memory.write_blob(new Uint8Array(settings.linux.root), 0x00400000);
-            reg32[reg_ebx] = settings.linux.root.byteLength;
+            reg32[REG_EBX_INDEX] = settings.linux.root.byteLength;
         }
 
         memory.write_string(settings.linux.cmdline, 0xF800);
 
-        reg32[reg_eax] = MEMORY_SIZE;
-        reg32[reg_ecx] = 0xF800;
+        reg32[REG_EAX_INDEX] = MEMORY_SIZE;
+        reg32[REG_ECX_INDEX] = 0xF800;
 
-        switch_seg(reg_cs, 0);
-        switch_seg(reg_ss, 0);
-        switch_seg(reg_ds, 0);
-        switch_seg(reg_es, 0);
-        switch_seg(reg_gs, 0);
-        switch_seg(reg_fs, 0);
+        switch_seg(REG_CS_INDEX, 0);
+        switch_seg(REG_SS_INDEX, 0);
+        switch_seg(REG_DS_INDEX, 0);
+        switch_seg(REG_ES_INDEX, 0);
+        switch_seg(REG_GS_INDEX, 0);
+        switch_seg(REG_FS_INDEX, 0);
 
         is_32 = true;
         address_size_32 = true;
@@ -588,15 +588,15 @@ function cpu_init(settings)
         update_address_size();
 
         regv = reg32;
-        reg_vsp = reg_esp;
-        reg_vbp = reg_ebp;
+        reg_vsp = REG_ES_INDEXP_INDEX;
+        reg_vbp = REG_EBP_INDEX;
 
         cr0 = 1;
     }
     else
     {
-        switch_seg(reg_ss, 0x30);
-        reg16[reg_sp] = 0x100;
+        switch_seg(REG_SS_INDEX, 0x30);
+        reg16[REG_SP_INDEX] = 0x100;
 
         instruction_pointer = 0;
     }
@@ -1089,11 +1089,11 @@ function read_moffs()
 {
     if(address_size_32)
     {
-        return get_seg_prefix(reg_ds) + read_imm32s();
+        return get_seg_prefix(REG_DS_INDEX) + read_imm32s();
     }
     else
     {
-        return get_seg_prefix(reg_ds) + read_imm16();
+        return get_seg_prefix(REG_DS_INDEX) + read_imm16();
     }
 }
 
@@ -1113,11 +1113,11 @@ function get_esp_npe(mod)
 {
     if(stack_size_32)
     {
-        return get_seg(reg_ss) + stack_reg[reg_vsp] + mod;
+        return get_seg(REG_SS_INDEX) + stack_reg[reg_vsp] + mod;
     }
     else
     {
-        return get_seg(reg_ss) + (stack_reg[reg_vsp] + mod & 0xFFFF);
+        return get_seg(REG_SS_INDEX) + (stack_reg[reg_vsp] + mod & 0xFFFF);
     }
 }
 
@@ -1126,12 +1126,12 @@ function get_esp_pe_read(mod)
     // UNSAFE: stack_reg[reg_vsp]+mod needs to be masked in 16 bit mode
     //   (only if paging is enabled and in 16 bit mode)
 
-    return translate_address_read(get_seg(reg_ss) + stack_reg[reg_vsp] + mod);
+    return translate_address_read(get_seg(REG_SS_INDEX) + stack_reg[reg_vsp] + mod);
 }
 
 function get_esp_pe_write(mod)
 {
-    return translate_address_write(get_seg(reg_ss) + stack_reg[reg_vsp] + mod);
+    return translate_address_write(get_seg(REG_SS_INDEX) + stack_reg[reg_vsp] + mod);
 }
 
 
@@ -1141,7 +1141,7 @@ function get_esp_pe_write(mod)
  */
 function get_real_ip()
 {
-    return instruction_pointer - get_seg(reg_cs);
+    return instruction_pointer - get_seg(REG_CS_INDEX);
 }
 
 function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
@@ -1163,9 +1163,9 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
 
     //if(interrupt_nr == 0x10)
     //{
-    //    dbg_log("int10 ax=" + h(reg16[reg_ax], 4) + " '" + String.fromCharCode(reg8[reg_al]) + "'");
+    //    dbg_log("int10 ax=" + h(reg16[REG_AX_INDEX], 4) + " '" + String.fromCharCode(reg8[REG_AL_INDEX]) + "'");
     //    dump_regs_short();
-    //    if(reg8[reg_ah] == 0xe) vga.tt_write(reg8[reg_al]);
+    //    if(reg8[REG_AH_INDEX] == 0xe) vga.tt_write(reg8[REG_AL_INDEX]);
     //}
 
     //dbg_log("int " + h(interrupt_nr));
@@ -1329,11 +1329,11 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
                 throw unimpl("#TS handler");
             }
 
-            var old_esp = reg32s[reg_esp],
-                old_ss = sreg[reg_ss];
+            var old_esp = reg32s[REG_ES_INDEXP_INDEX],
+                old_ss = sreg[REG_SS_INDEX];
 
-            reg32[reg_esp] = new_esp;
-            sreg[reg_ss] = new_ss;
+            reg32[REG_ES_INDEXP_INDEX] = new_esp;
+            sreg[REG_SS_INDEX] = new_ss;
 
             cpl = info.dpl;
             //dbg_log("int" + h(interrupt_nr, 2) +" from=" + h(instruction_pointer, 8)
@@ -1355,9 +1355,9 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         load_flags();
         push32(flags);
 
-        push32(sreg[reg_cs]);
+        push32(sreg[REG_CS_INDEX]);
         push32(get_real_ip());
-        //dbg_log("pushed eip to " + h(reg32[reg_esp], 8), LOG_CPU);
+        //dbg_log("pushed eip to " + h(reg32[REG_ES_INDEXP_INDEX], 8), LOG_CPU);
 
 
         if(error_code !== false)
@@ -1368,13 +1368,13 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
 
 
         // TODO
-        sreg[reg_cs] = selector;
-        //switch_seg(reg_cs);
+        sreg[REG_CS_INDEX] = selector;
+        //switch_seg(REG_CS_INDEX);
 
-        //dbg_log("current esp: " + h(reg32[reg_esp]), LOG_CPU);
+        //dbg_log("current esp: " + h(reg32[REG_ES_INDEXP_INDEX]), LOG_CPU);
         //dbg_log("call int " + h(interrupt_nr) + " from " + h(instruction_pointer) + " to " + h(base) + " with error_code=" + error_code, LOG_CPU);
 
-        instruction_pointer = get_seg(reg_cs) + base | 0;
+        instruction_pointer = get_seg(REG_CS_INDEX) + base | 0;
 
         //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & FLAG_INTERRUPT));
 
@@ -1398,13 +1398,13 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         // push flags, cs:ip
         load_flags();
         push16(flags);
-        push16(sreg[reg_cs]);
+        push16(sreg[REG_CS_INDEX]);
         push16(get_real_ip());
 
         flags = flags & ~FLAG_INTERRUPT;
 
-        switch_seg(reg_cs, memory.read16((interrupt_nr << 2) + 2));
-        instruction_pointer = get_seg(reg_cs) + memory.read16(interrupt_nr << 2) | 0;
+        switch_seg(REG_CS_INDEX, memory.read16((interrupt_nr << 2) + 2));
+        instruction_pointer = get_seg(REG_CS_INDEX) + memory.read16(interrupt_nr << 2) | 0;
     }
 }
 
@@ -1663,41 +1663,41 @@ function cpuid()
 
     // http://lxr.linux.no/linux+%2a/arch/x86/include/asm/cpufeature.h
 
-    var id = reg32s[reg_eax];
+    var id = reg32s[REG_EAX_INDEX];
 
     if((id & 0x7FFFFFFF) === 0)
     {
-        reg32[reg_eax] = 2;
+        reg32[REG_EAX_INDEX] = 2;
 
         if(id === 0)
         {
-            reg32[reg_ebx] = 0x756E6547; // Genu
-            reg32[reg_edx] = 0x49656E69; // ineI
-            reg32[reg_ecx] = 0x6C65746E; // ntel
+            reg32[REG_EBX_INDEX] = 0x756E6547; // Genu
+            reg32[REG_EDX_INDEX] = 0x49656E69; // ineI
+            reg32[REG_ECX_INDEX] = 0x6C65746E; // ntel
         }
     }
     else if(id === 1)
     {
         // pentium
-        reg32[reg_eax] = 0x513;
-        reg32[reg_ebx] = 0;
-        reg32[reg_ecx] = 0;
-        reg32[reg_edx] = fpu.is_fpu | 1 << 3 | 1 << 4 | 1 << 8| 1 << 13 | 1 << 15;
+        reg32[REG_EAX_INDEX] = 0x513;
+        reg32[REG_EBX_INDEX] = 0;
+        reg32[REG_ECX_INDEX] = 0;
+        reg32[REG_EDX_INDEX] = fpu.is_fpu | 1 << 3 | 1 << 4 | 1 << 8| 1 << 13 | 1 << 15;
     }
     else if(id === 2)
     {
         // Taken from http://siyobik.info.gf/main/reference/instruction/CPUID
-        reg32[reg_eax] = 0x665B5001;
-        reg32[reg_ebx] = 0;
-        reg32[reg_ecx] = 0;
-        reg32[reg_edx] = 0x007A7000;
+        reg32[REG_EAX_INDEX] = 0x665B5001;
+        reg32[REG_EBX_INDEX] = 0;
+        reg32[REG_ECX_INDEX] = 0;
+        reg32[REG_EDX_INDEX] = 0x007A7000;
     }
     else if(id === (0x80860000 | 0))
     {
-        reg32[reg_eax] = 0;
-        reg32[reg_ebx] = 0;
-        reg32[reg_ecx] = 0;
-        reg32[reg_edx] = 0;
+        reg32[REG_EAX_INDEX] = 0;
+        reg32[REG_EBX_INDEX] = 0;
+        reg32[REG_ECX_INDEX] = 0;
+        reg32[REG_EDX_INDEX] = 0;
     }
     else if((id & 0xF0000000) === ~~0x40000000)
     {
@@ -1757,9 +1757,9 @@ function update_address_size()
         modrm_resolve = modrm_resolve32;
 
         regv = reg32;
-        reg_vcx = reg_ecx;
-        reg_vsi = reg_esi;
-        reg_vdi = reg_edi;
+        reg_vcx = REG_ECX_INDEX;
+        reg_vsi = REG_ES_INDEXI_INDEX;
+        reg_vdi = REG_EDI_INDEX;
     }
     else
     {
@@ -1767,9 +1767,9 @@ function update_address_size()
         modrm_resolve = modrm_resolve16;
 
         regv = reg16;
-        reg_vcx = reg_cx;
-        reg_vsi = reg_si;
-        reg_vdi = reg_di;
+        reg_vcx = REG_CX_INDEX;
+        reg_vsi = REG_SI_INDEX;
+        reg_vdi = REG_DI_INDEX;
     }
 }
 
@@ -1868,7 +1868,7 @@ function switch_seg(reg, selector)
     dbg_assert(reg >= 0 && reg <= 5);
     dbg_assert(typeof selector === "number" && selector < 0x10000 && selector >= 0);
 
-    if(reg === reg_cs)
+    if(reg === REG_CS_INDEX)
     {
         protected_mode = (cr0 & 1) === 1;
     }
@@ -1884,7 +1884,7 @@ function switch_seg(reg, selector)
 
     var info = lookup_segment_selector(selector);
 
-    if(reg === reg_ss)
+    if(reg === REG_SS_INDEX)
     {
         if(info.is_null)
         {
@@ -1911,17 +1911,17 @@ function switch_seg(reg, selector)
         if(info.size)
         {
             stack_reg = reg32s;
-            reg_vsp = reg_esp;
-            reg_vbp = reg_ebp;
+            reg_vsp = REG_ES_INDEXP_INDEX;
+            reg_vbp = REG_EBP_INDEX;
         }
         else
         {
             stack_reg = reg16;
-            reg_vsp = reg_sp;
-            reg_vbp = reg_bp;
+            reg_vsp = REG_SP_INDEX;
+            reg_vbp = REG_BP_INDEX;
         }
     }
-    else if(reg === reg_cs)
+    else if(reg === REG_CS_INDEX)
     {
         if(!info.is_executable)
         {

@@ -127,7 +127,7 @@ function NoFPU(io)
             // fnstsw
             // no fpu -> write nonzero
             dbg_log("Unimplemented DF", LOG_FPU);
-            reg16[reg_ax] = 1;
+            reg16[REG_AX_INDEX] = 1;
         }
         else
         {
@@ -1555,7 +1555,7 @@ function FPU(io)
                 if(imm8 === 0xE0)
                 {
                     // fnstsw
-                    reg16[reg_ax] = load_status_word();
+                    reg16[REG_AX_INDEX] = load_status_word();
                 }
                 else
                 {

@@ -18,7 +18,7 @@
 
 function jmp_rel16(rel16)
 {
-    var current_cs = get_seg(reg_cs);
+    var current_cs = get_seg(REG_CS_INDEX);
 
     // limit ip to 16 bit
     // ugly
@@ -252,64 +252,64 @@ function pop32s()
 
 function pusha16()
 {
-    var temp = reg16[reg_sp];
+    var temp = reg16[REG_SP_INDEX];
 
     // make sure we don't get a pagefault after having
     // pushed several registers already
     translate_address_write(temp - 15);
 
-    push16(reg16[reg_ax]);
-    push16(reg16[reg_cx]);
-    push16(reg16[reg_dx]);
-    push16(reg16[reg_bx]);
+    push16(reg16[REG_AX_INDEX]);
+    push16(reg16[REG_CX_INDEX]);
+    push16(reg16[REG_DX_INDEX]);
+    push16(reg16[REG_BX_INDEX]);
     push16(temp);
-    push16(reg16[reg_bp]);
-    push16(reg16[reg_si]);
-    push16(reg16[reg_di]);
+    push16(reg16[REG_BP_INDEX]);
+    push16(reg16[REG_SI_INDEX]);
+    push16(reg16[REG_DI_INDEX]);
 }
 
 function pusha32()
 {
-    var temp = reg32s[reg_esp];
+    var temp = reg32s[REG_ES_INDEXP_INDEX];
 
     translate_address_write(temp - 31);
 
-    push32(reg32s[reg_eax]);
-    push32(reg32s[reg_ecx]);
-    push32(reg32s[reg_edx]);
-    push32(reg32s[reg_ebx]);
+    push32(reg32s[REG_EAX_INDEX]);
+    push32(reg32s[REG_ECX_INDEX]);
+    push32(reg32s[REG_EDX_INDEX]);
+    push32(reg32s[REG_EBX_INDEX]);
     push32(temp);
-    push32(reg32s[reg_ebp]);
-    push32(reg32s[reg_esi]);
-    push32(reg32s[reg_edi]);
+    push32(reg32s[REG_EBP_INDEX]);
+    push32(reg32s[REG_ES_INDEXI_INDEX]);
+    push32(reg32s[REG_EDI_INDEX]);
 }
 
 function popa16()
 {
     translate_address_read(stack_reg[reg_vsp] + 15);
 
-    reg16[reg_di] = pop16();
-    reg16[reg_si] = pop16();
-    reg16[reg_bp] = pop16();
+    reg16[REG_DI_INDEX] = pop16();
+    reg16[REG_SI_INDEX] = pop16();
+    reg16[REG_BP_INDEX] = pop16();
     stack_reg[reg_vsp] += 2;
-    reg16[reg_bx] = pop16();
-    reg16[reg_dx] = pop16();
-    reg16[reg_cx] = pop16();
-    reg16[reg_ax] = pop16();
+    reg16[REG_BX_INDEX] = pop16();
+    reg16[REG_DX_INDEX] = pop16();
+    reg16[REG_CX_INDEX] = pop16();
+    reg16[REG_AX_INDEX] = pop16();
 }
 
 function popa32()
 {
     translate_address_read(stack_reg[reg_vsp] + 31);
 
-    reg32[reg_edi] = pop32s();
-    reg32[reg_esi] = pop32s();
-    reg32[reg_ebp] = pop32s();
+    reg32[REG_EDI_INDEX] = pop32s();
+    reg32[REG_ES_INDEXI_INDEX] = pop32s();
+    reg32[REG_EBP_INDEX] = pop32s();
     stack_reg[reg_vsp] += 4;
-    reg32[reg_ebx] = pop32s();
-    reg32[reg_edx] = pop32s();
-    reg32[reg_ecx] = pop32s();
-    reg32[reg_eax] = pop32s();
+    reg32[REG_EBX_INDEX] = pop32s();
+    reg32[REG_EDX_INDEX] = pop32s();
+    reg32[REG_ECX_INDEX] = pop32s();
+    reg32[REG_EAX_INDEX] = pop32s();
 }
 
 function xchg8(memory_data, modrm_byte)
@@ -334,8 +334,8 @@ function xchg16(memory_data, modrm_byte)
 
 function xchg16r(operand)
 {
-    var temp = reg16[reg_ax];
-    reg16[reg_ax] = reg16[operand];
+    var temp = reg16[REG_AX_INDEX];
+    reg16[REG_AX_INDEX] = reg16[operand];
     reg16[operand] = temp;
 }
 
@@ -351,8 +351,8 @@ function xchg32(memory_data, modrm_byte)
 
 function xchg32r(operand)
 {
-    var temp = reg32s[reg_eax];
-    reg32[reg_eax] = reg32s[operand];
+    var temp = reg32s[REG_EAX_INDEX];
+    reg32[REG_EAX_INDEX] = reg32s[operand];
     reg32[operand] = temp;
 }
 
@@ -382,7 +382,7 @@ function lea16()
         mod = modrm_byte >> 3 & 7;
 
     // override prefix, so modrm16 does not return the segment part
-    segment_prefix = reg_noseg;
+    segment_prefix = REG_NOSEG_INDEX;
 
     reg16[mod << 1] = modrm_resolve(modrm_byte);
 
@@ -394,7 +394,7 @@ function lea32()
     var modrm_byte = read_imm8(),
         mod = modrm_byte >> 3 & 7;
 
-    segment_prefix = reg_noseg;
+    segment_prefix = REG_NOSEG_INDEX;
 
     reg32[mod] = modrm_resolve(modrm_byte);
 
@@ -407,20 +407,20 @@ function enter16()
         nesting_level = read_imm8(),
         frame_temp;
 
-    push16(reg16[reg_bp]);
-    frame_temp = reg16[reg_sp];
+    push16(reg16[REG_BP_INDEX]);
+    frame_temp = reg16[REG_SP_INDEX];
 
     if(nesting_level > 0)
     {
         for(var i = 1; i < nesting_level; i++)
         {
-            reg16[reg_bp] -= 2;
-            push16(reg16[reg_bp]);
+            reg16[REG_BP_INDEX] -= 2;
+            push16(reg16[REG_BP_INDEX]);
         }
         push16(frame_temp);
     }
-    reg16[reg_bp] = frame_temp;
-    reg16[reg_sp] = frame_temp - size;
+    reg16[REG_BP_INDEX] = frame_temp;
+    reg16[REG_SP_INDEX] = frame_temp - size;
 
     dbg_assert(!page_fault);
 }
@@ -431,20 +431,20 @@ function enter32()
         nesting_level = read_imm8() & 31,
         frame_temp;
 
-    push32(reg32s[reg_ebp]);
-    frame_temp = reg32s[reg_esp];
+    push32(reg32s[REG_EBP_INDEX]);
+    frame_temp = reg32s[REG_ES_INDEXP_INDEX];
 
     if(nesting_level > 0)
     {
         for(var i = 1; i < nesting_level; i++)
         {
-            reg32[reg_ebp] -= 4;
-            push32(reg32s[reg_ebp]);
+            reg32[REG_EBP_INDEX] -= 4;
+            push32(reg32s[REG_EBP_INDEX]);
         }
         push32(frame_temp);
     }
-    reg32[reg_ebp] = frame_temp;
-    reg32[reg_esp] -= size;
+    reg32[REG_EBP_INDEX] = frame_temp;
+    reg32[REG_ES_INDEXP_INDEX] -= size;
 
     dbg_assert(!page_fault);
 }

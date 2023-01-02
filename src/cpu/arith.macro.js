@@ -380,9 +380,9 @@ function neg32(dest_operand)
 
 function mul8(source_operand)
 {
-    var result = source_operand * reg8[reg_al];
+    var result = source_operand * reg8[REG_AL_INDEX];
 
-    reg16[reg_ax] = result;
+    reg16[REG_AX_INDEX] = result;
 
     if(result < 0x100)
     {
@@ -398,9 +398,9 @@ function mul8(source_operand)
 
 function imul8(source_operand)
 {
-    var result = source_operand * reg8s[reg_al];
+    var result = source_operand * reg8s[REG_AL_INDEX];
 
-    reg16[reg_ax] = result;
+    reg16[REG_AX_INDEX] = result;
 
     if(result > 0x7F || result < -0x80)
     {
@@ -415,12 +415,12 @@ function imul8(source_operand)
 
 function mul16(source_operand)
 {
-    var result = source_operand * reg16[reg_ax],
+    var result = source_operand * reg16[REG_AX_INDEX],
         high_result = result >>> 16;
-    //console.log(h(a) + " * " + h(reg16[reg_ax]) + " = " + h(result));
+    //console.log(h(a) + " * " + h(reg16[REG_AX_INDEX]) + " = " + h(result));
 
-    reg16[reg_ax] = result;
-    reg16[reg_dx] = high_result;
+    reg16[REG_AX_INDEX] = result;
+    reg16[REG_DX_INDEX] = high_result;
 
     if(high_result === 0)
     {
@@ -439,10 +439,10 @@ function mul16(source_operand)
  */
 function imul16(source_operand)
 {
-    var result = source_operand * reg16s[reg_ax];
+    var result = source_operand * reg16s[REG_AX_INDEX];
 
-    reg16[reg_ax] = result;
-    reg16[reg_dx] = result >> 16;
+    reg16[REG_AX_INDEX] = result;
+    reg16[REG_DX_INDEX] = result >> 16;
 
     if(result > 0x7FFF || result < -0x8000)
     {
@@ -482,11 +482,11 @@ function imul_reg16(operand1, operand2)
 
 function mul32(source_operand)
 {
-    var dest_operand = reg32[reg_eax],
+    var dest_operand = reg32[REG_EAX_INDEX],
         high_result = source_operand * dest_operand / 0x100000000 | 0;
 
-    reg32[reg_eax] = multiply_low(source_operand, dest_operand);
-    reg32[reg_edx] = high_result;
+    reg32[REG_EAX_INDEX] = multiply_low(source_operand, dest_operand);
+    reg32[REG_EDX_INDEX] = high_result;
 
     if(high_result === 0)
     {
@@ -499,14 +499,14 @@ function mul32(source_operand)
     flags_changed = 0;
 
     //console.log(memory.read32s(address) + " * " + old);
-    //console.log("= " + reg32[reg_edx] + " " + reg32[reg_eax]);
+    //console.log("= " + reg32[REG_EDX_INDEX] + " " + reg32[REG_EAX_INDEX]);
 }
 
 function imul32(source_operand)
 {
     dbg_assert(source_operand < 0x80000000 && source_operand >= -0x80000000);
 
-    var dest_operand = reg32s[reg_eax],
+    var dest_operand = reg32s[REG_EAX_INDEX],
         high_result = source_operand * dest_operand / 0x100000000 | 0,
         low_result = multiply_low(source_operand, dest_operand);
 
@@ -515,10 +515,10 @@ function imul32(source_operand)
         high_result = -1;
     }
 
-    reg32[reg_eax] = low_result;
-    reg32[reg_edx] = high_result;
+    reg32[REG_EAX_INDEX] = low_result;
+    reg32[REG_EDX_INDEX] = high_result;
 
-    if(high_result === (reg32[reg_eax] < 0x80000000 ? 0 : -1))
+    if(high_result === (reg32[REG_EAX_INDEX] < 0x80000000 ? 0 : -1))
     {
         flags &= ~1 & ~FLAG_OVERFLOW;
     }
@@ -530,7 +530,7 @@ function imul32(source_operand)
 
 
     //console.log(target_operand + " * " + source_operand);
-    //console.log("= " + h(reg32[reg_edx]) + " " + h(reg32[reg_eax]));
+    //console.log("= " + h(reg32[REG_EDX_INDEX]) + " " + h(reg32[REG_EAX_INDEX]));
 }
 
 /*
@@ -566,7 +566,7 @@ function div8(source_operand)
 {
     dbg_assert(source_operand >= 0 && source_operand < 0x100);
 
-    var target_operand = reg16[reg_ax],
+    var target_operand = reg16[REG_AX_INDEX],
         result = target_operand / source_operand | 0;
 
     if(result > 0xFF || source_operand === 0)
@@ -575,8 +575,8 @@ function div8(source_operand)
     }
     else
     {
-        reg8[reg_al] = result;
-        reg8[reg_ah] = target_operand % source_operand;
+        reg8[REG_AL_INDEX] = result;
+        reg8[REG_AH_INDEX] = target_operand % source_operand;
     }
 }
 
@@ -584,7 +584,7 @@ function idiv8(source_operand)
 {
     dbg_assert(source_operand >= -0x80 && source_operand < 0x80);
 
-    var target_operand = reg16s[reg_ax],
+    var target_operand = reg16s[REG_AX_INDEX],
         result = target_operand / source_operand | 0;
 
     if(result > 0x7F || result < -0x80 || source_operand === 0)
@@ -593,8 +593,8 @@ function idiv8(source_operand)
     }
     else
     {
-        reg8[reg_al] = result;
-        reg8[reg_ah] = target_operand % source_operand;
+        reg8[REG_AL_INDEX] = result;
+        reg8[REG_AH_INDEX] = target_operand % source_operand;
     }
 }
 
@@ -603,7 +603,7 @@ function div16(source_operand)
     dbg_assert(source_operand >= 0 && source_operand < 0x10000);
 
     var
-        target_operand = (reg16[reg_ax] | reg16[reg_dx] << 16) >>> 0,
+        target_operand = (reg16[REG_AX_INDEX] | reg16[REG_DX_INDEX] << 16) >>> 0,
         result = target_operand / source_operand | 0;
 
     if(result > 0xFFFF || source_operand === 0)
@@ -612,8 +612,8 @@ function div16(source_operand)
     }
     else
     {
-        reg16[reg_ax] = result;
-        reg16[reg_dx] = target_operand % source_operand;
+        reg16[REG_AX_INDEX] = result;
+        reg16[REG_DX_INDEX] = target_operand % source_operand;
     }
 }
 
@@ -621,7 +621,7 @@ function idiv16(source_operand)
 {
     dbg_assert(source_operand >= -0x8000 && source_operand < 0x8000);
 
-    var target_operand = reg16[reg_ax] | (reg16[reg_dx] << 16),
+    var target_operand = reg16[REG_AX_INDEX] | (reg16[REG_DX_INDEX] << 16),
         result = target_operand / source_operand | 0;
 
     if(result > 0x7FFF || result < -0x8000 || source_operand === 0)
@@ -630,8 +630,8 @@ function idiv16(source_operand)
     }
     else
     {
-        reg16[reg_ax] = result;
-        reg16[reg_dx] = target_operand % source_operand;
+        reg16[REG_AX_INDEX] = result;
+        reg16[REG_DX_INDEX] = target_operand % source_operand;
     }
 }
 
@@ -640,8 +640,8 @@ function div32(source_operand)
     dbg_assert(source_operand >= 0 && source_operand <= 0xffffffff);
 
     var
-        dest_operand_low = reg32[reg_eax],
-        dest_operand_high = reg32[reg_edx],
+        dest_operand_low = reg32[REG_EAX_INDEX],
+        dest_operand_high = reg32[REG_EDX_INDEX],
 
         // Wat? Not sure if seriös ...
         mod = (0x100000000 * dest_operand_high % source_operand + dest_operand_low % source_operand) % source_operand,
@@ -653,12 +653,12 @@ function div32(source_operand)
     }
     else
     {
-        reg32[reg_eax] = result;
-        reg32[reg_edx] = mod;
+        reg32[REG_EAX_INDEX] = result;
+        reg32[REG_EDX_INDEX] = mod;
     }
 
     //console.log(h(dest_operand_high) + ":" + h(dest_operand_low) + " / " + h(source_operand));
-    //console.log("= " + h(reg32[reg_eax]) + " rem " + h(reg32[reg_edx]));
+    //console.log("= " + h(reg32[REG_EAX_INDEX]) + " rem " + h(reg32[REG_EDX_INDEX]));
 }
 
 function idiv32(source_operand)
@@ -666,8 +666,8 @@ function idiv32(source_operand)
     dbg_assert(source_operand < 0x80000000 && source_operand >= -0x80000000);
 
     var
-        dest_operand_low = reg32[reg_eax],
-        dest_operand_high = reg32s[reg_edx],
+        dest_operand_low = reg32[REG_EAX_INDEX],
+        dest_operand_high = reg32s[REG_EDX_INDEX],
         mod = (0x100000000 * dest_operand_high % source_operand + dest_operand_low % source_operand) % source_operand,
         result = dest_operand_low / source_operand + dest_operand_high * 0x100000000 / source_operand;
 
@@ -677,12 +677,12 @@ function idiv32(source_operand)
     }
     else
     {
-        reg32[reg_eax] = result;
-        reg32[reg_edx] = mod;
+        reg32[REG_EAX_INDEX] = result;
+        reg32[REG_EDX_INDEX] = mod;
     }
 
     //console.log(h(dest_operand_high) + ":" + h(dest_operand_low) + " / " + h(source_operand));
-    //console.log("= " + h(reg32[reg_eax]) + " rem " + h(reg32[reg_edx]));
+    //console.log("= " + h(reg32[REG_EAX_INDEX]) + " rem " + h(reg32[REG_EDX_INDEX]));
 }
 
 
@@ -720,7 +720,7 @@ function bcd_daa()
 {
     //dbg_log("daa");
     // decimal adjust after addition
-    var old_al = reg8[reg_al],
+    var old_al = reg8[REG_AL_INDEX],
         old_cf = getcf(),
         old_af = getaf();
 
@@ -728,16 +728,16 @@ function bcd_daa()
 
     if((old_al & 0xF) > 9 || old_af)
     {
-        reg8[reg_al] += 6;
+        reg8[REG_AL_INDEX] += 6;
         flags |= FLAG_ADJUST;
     }
     if(old_al > 0x99 || old_cf)
     {
-        reg8[reg_al] += 0x60;
+        reg8[REG_AL_INDEX] += 0x60;
         flags |= 1;
     }
 
-    last_result = reg8[reg_al];
+    last_result = reg8[REG_AL_INDEX];
     last_op_size = OPSIZE_8;
     last_op1 = last_op2 = 0;
     flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_ADJUST & ~FLAG_OVERFLOW;
@@ -747,16 +747,16 @@ function bcd_das()
 {
     //dbg_log("das");
     // decimal adjust after subtraction
-    var old_al = reg8[reg_al],
+    var old_al = reg8[REG_AL_INDEX],
         old_cf = getcf();
 
     flags &= ~1;
 
     if((old_al & 0xF) > 9 || getaf())
     {
-        reg8[reg_al] -= 6;
+        reg8[REG_AL_INDEX] -= 6;
         flags |= FLAG_ADJUST;
-        flags = flags & ~1 | old_cf | reg8[reg_al] >> 7;
+        flags = flags & ~1 | old_cf | reg8[REG_AL_INDEX] >> 7;
     }
     else
     {
@@ -765,11 +765,11 @@ function bcd_das()
 
     if(old_al > 0x99 || old_cf)
     {
-        reg8[reg_al] -= 0x60;
+        reg8[REG_AL_INDEX] -= 0x60;
         flags |= 1;
     }
 
-    last_result = reg8[reg_al];
+    last_result = reg8[REG_AL_INDEX];
     last_op_size = OPSIZE_8;
     last_op1 = last_op2 = 0;
     flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_ADJUST & ~FLAG_OVERFLOW;
@@ -786,11 +786,11 @@ function bcd_aam()
     }
     else
     {
-        var temp = reg8[reg_al];
-        reg8[reg_ah] = temp / imm8;
-        reg8[reg_al] = temp % imm8;
+        var temp = reg8[REG_AL_INDEX];
+        reg8[REG_AH_INDEX] = temp / imm8;
+        reg8[REG_AL_INDEX] = temp % imm8;
 
-        last_result = reg8[reg_al];
+        last_result = reg8[REG_AL_INDEX];
         flags_changed = FLAG_ALL_ARITHMETIC;
     }
 }
@@ -800,25 +800,25 @@ function bcd_aad()
     // ascii adjust after division
     var imm8 = read_imm8();
 
-    last_result = reg8[reg_al] + reg8[reg_ah] * imm8;
-    reg16[reg_ax] = last_result & 0xFF;
+    last_result = reg8[REG_AL_INDEX] + reg8[REG_AH_INDEX] * imm8;
+    reg16[REG_AX_INDEX] = last_result & 0xFF;
     last_op_size = OPSIZE_8;
     flags_changed = FLAG_ALL_ARITHMETIC;
 }
 
 function bcd_aaa()
 {
-    if((reg8[reg_al] & 0xF) > 9 || getaf())
+    if((reg8[REG_AL_INDEX] & 0xF) > 9 || getaf())
     {
-        reg16[reg_ax] += 6;
-        reg8[reg_ah] += 1;
+        reg16[REG_AX_INDEX] += 6;
+        reg8[REG_AH_INDEX] += 1;
         flags |= FLAG_ADJUST | 1;
     }
     else
     {
         flags &= ~FLAG_ADJUST & ~1;
     }
-    reg8[reg_al] &= 0xF;
+    reg8[REG_AL_INDEX] &= 0xF;
 
     flags_changed &= ~FLAG_ADJUST & ~1;
 }
@@ -826,17 +826,17 @@ function bcd_aaa()
 
 function bcd_aas()
 {
-    if((reg8[reg_al] & 0xF) > 9 || getaf())
+    if((reg8[REG_AL_INDEX] & 0xF) > 9 || getaf())
     {
-        reg16[reg_ax] -= 6;
-        reg8[reg_ah] -= 1;
+        reg16[REG_AX_INDEX] -= 6;
+        reg8[REG_AH_INDEX] -= 1;
         flags |= FLAG_ADJUST | 1;
     }
     else
     {
         flags &= ~FLAG_ADJUST & ~1;
     }
-    reg8[reg_al] &= 0xF;
+    reg8[REG_AL_INDEX] &= 0xF;
 
     flags_changed &= ~FLAG_ADJUST & ~1;
 }
