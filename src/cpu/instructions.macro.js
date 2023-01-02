@@ -137,18 +137,38 @@ var table16 = [],       // 16 位模式下的操作指令集映射
         { switch_seg(reg, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; }, \
         { switch_seg(reg, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; });
 
+// 8 位寄存器，参考：https://pdos.csail.mit.edu/6.828/2008/readings/i386/s02_03.htm
+// al, cl, dl, bl, ah, ch, dh, bh
+// 0,  4,  8,  12, 1,  5,  9,  13
+// 位置映射
+const REG8_POSITION_MAP = [0,  4,  8,  12, 1,  5,  9,  13];
+// 最后三位
+#define reg_e8  reg8[REG8_POSITION_MAP[modrm_byte & 7]]
+#define reg_e8s reg8s[REG8_POSITION_MAP[modrm_byte & 7]]
+// 中间三位
+#define reg_g8  reg8[REG8_POSITION_MAP[modrm_byte >> 3 & 7]]
 
-#define reg_e8 reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]
-#define reg_e8s reg8s[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]
-#define reg_g8 reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]
 
-#define reg_e16 reg16[modrm_byte << 1 & 14]
-#define reg_e16s reg16s[modrm_byte << 1 & 14]
-#define reg_g16 reg16[modrm_byte >> 2 & 14]
-#define reg_g16s reg16s[modrm_byte >> 2 & 14]
+// 16 位寄存器，因为是 32 位内存，所以需要跳着选
+// ax, cx, dx, bx, sp, bp, si, di
+// 0,  2,  4,  6,  8,  10, 12, 14
+// 位置映射
+const REG16_POSITION_MAP = [0,  2,  4,  6,  8,  10, 12, 14];
+// 最后三位
+#define reg_e16     reg16[REG16_POSITION_MAP[modrm_byte & 7]]
+#define reg_e16s    reg16s[REG16_POSITION_MAP[modrm_byte & 7]]
+// 中间三位
+#define reg_g16     reg16[REG16_POSITION_MAP[modrm_byte >> 3 & 7]]
+#define reg_g16s    reg16s[REG16_POSITION_MAP[modrm_byte >> 3 & 7]]
 
+
+// 32 位寄存器
+// eax, ecx, edx, ebx, esp, ebp, esi, edi
+// 0    1    2    3    4    5    6    7
+// 最后 3 位
 #define reg_e32 reg32[modrm_byte & 7]
 #define reg_e32s reg32s[modrm_byte & 7]
+// 中间三位
 #define reg_g32 reg32[modrm_byte >> 3 & 7]
 #define reg_g32s reg32s[modrm_byte >> 3 & 7]
 
@@ -267,17 +287,21 @@ var table16 = [],       // 16 位模式下的操作指令集映射
     }
 
 
+// 操作码 opcode 映射
 #define op(n, code) table16[n] = table32[n] = function() { code };
 
+// 操作码 opcode 映射，并且跟 ModR/M 字节
 // opcode with modrm byte
 #define opm(n, code)\
     table16[n] = table32[n] = function() { var modrm_byte = read_imm8(); code };
 
+// 操作码 opcode 映射，提供 16 位和 32 位的不同代码逻辑
 // opcode that has a 16 and a 32 bit version
 #define op2(n, code16, code32)\
     table16[n] = function() { code16 };\
     table32[n] = function() { code32 };\
 
+// 操作码 opcode 映射，提供 16 位和 32 位的不同代码逻辑，并且跟 ModR/M 字节
 #define opm2(n, code16, code32)\
     table16[n] = function() { var modrm_byte = read_imm8(); code16 };\
     table32[n] = function() { var modrm_byte = read_imm8(); code32 };\

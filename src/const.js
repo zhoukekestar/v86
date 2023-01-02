@@ -50,6 +50,15 @@ var
 ///** @const */ LOG_LEVEL = 0;
 
 
+/*
+  * Translation Lookaside Buffer
+  * Information about which pages are cached in the tlb.
+  * By bit:
+  *   0 system, read
+  *   1 system, write
+  *   2 user, read
+  *   3 user, write
+  */
 var
 /** @const */ TLB_SYSTEM_READ = 1,
 /** @const */ TLB_SYSTEM_WRITE = 2,
