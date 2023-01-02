@@ -5,6 +5,9 @@
 * images is download from [copy/images]
 * you can start it with `npx serve . -p 80`
 
+Test images
+* `qemu-system-i386 -fda images/windows101.img`
+
 
 
 # ORIGINAL
