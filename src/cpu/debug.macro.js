@@ -22,10 +22,10 @@ function step()
 
     if(!running)
     {
-        cycle(); 
+        cycle();
     }
 
-    dump_regs(); 
+    dump_regs();
     var now = Date.now();
 
     vga.timer(now);
@@ -38,7 +38,7 @@ function step()
 function run_until()
 {
     running = false;
-    var a = parseInt(prompt("input hex", ""), 16); 
+    var a = parseInt(prompt("input hex", ""), 16);
     if(a) while(instruction_pointer != a) cycle()
     dump_regs();
 }
@@ -90,7 +90,7 @@ function logop(_ip, op)
     {
         //return;
     }
-    
+
 
     ops.add(_ip);
     ops.add(opcode_map[op] || "unkown");
@@ -99,7 +99,7 @@ function logop(_ip, op)
 
 function dump_stack(start, end)
 {
-    var esp = reg32[reg_esp];
+    var esp = reg32[REG_ES_INDEXP_INDEX];
     dbg_log("========= STACK ==========");
 
     if(end >= start || end === undefined)
@@ -123,15 +123,15 @@ function dump_stack(start, end)
 function dump_regs_short()
 {
     var
-        r32 = { "eax": reg_eax, "ecx": reg_ecx, "edx": reg_edx, "ebx": reg_ebx, 
-                "esp": reg_esp, "ebp": reg_ebp, "esi": reg_esi, "edi": reg_edi },
+        r32 = { "eax": REG_EAX_INDEX, "ecx": REG_ECX_INDEX, "edx": REG_EDX_INDEX, "ebx": REG_EBX_INDEX,
+                "esp": REG_ES_INDEXP_INDEX, "ebp": REG_EBP_INDEX, "esi": REG_ES_INDEXI_INDEX, "edi": REG_EDI_INDEX },
         r32_names = ["eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"],
-        s = { "cs": reg_cs, "ds": reg_ds, "es": reg_es, "fs": reg_fs, "gs": reg_gs, "ss": reg_ss },
+        s = { "cs": REG_CS_INDEX, "ds": REG_DS_INDEX, "es": REG_ES_INDEX, "fs": REG_FS_INDEX, "gs": REG_GS_INDEX, "ss": REG_SS_INDEX },
         line1 = "",
         line2 = "";
 
 
-    
+
     for(var i = 0; i < 4; i++)
     {
         line1 += r32_names[i] + "="  + h(reg32[r32[r32_names[i]]], 8) + " ";
@@ -141,8 +141,8 @@ function dump_regs_short()
     line1 += " eip=" + h(get_real_ip(), 8);
     line2 += " flg=" + h(get_flags());
 
-    line1 += "  ds=" + h(sreg[reg_ds], 4) + " es=" + h(sreg[reg_es], 4) + "  fs=" + h(sreg[reg_fs], 4);
-    line2 += "  gs=" + h(sreg[reg_gs], 4) + " cs=" + h(sreg[reg_cs], 4) + "  ss=" + h(sreg[reg_ss], 4);
+    line1 += "  ds=" + h(sreg[REG_DS_INDEX], 4) + " es=" + h(sreg[REG_ES_INDEX], 4) + "  fs=" + h(sreg[REG_FS_INDEX], 4);
+    line2 += "  gs=" + h(sreg[REG_GS_INDEX], 4) + " cs=" + h(sreg[REG_CS_INDEX], 4) + "  ss=" + h(sreg[REG_SS_INDEX], 4);
 
     dbg_log(line1);
     dbg_log(line2);
@@ -151,47 +151,47 @@ function dump_regs_short()
 function dump_regs()
 {
     var
-        r32 = { "eax": reg_eax, "ecx": reg_ecx, "edx": reg_edx, "ebx": reg_ebx, 
-                "esp": reg_esp, "ebp": reg_ebp, "esi": reg_esi, "edi": reg_edi },
+        r32 = { "eax": REG_EAX_INDEX, "ecx": REG_ECX_INDEX, "edx": REG_EDX_INDEX, "ebx": REG_EBX_INDEX,
+                "esp": REG_ES_INDEXP_INDEX, "ebp": REG_EBP_INDEX, "esi": REG_ES_INDEXI_INDEX, "edi": REG_EDI_INDEX },
 
-        s = { "cs": reg_cs, "ds": reg_ds, "es": reg_es, 
-              "fs": reg_fs, "gs": reg_gs, "ss": reg_ss },
+        s = { "cs": REG_CS_INDEX, "ds": REG_DS_INDEX, "es": REG_ES_INDEX,
+              "fs": REG_FS_INDEX, "gs": REG_GS_INDEX, "ss": REG_SS_INDEX },
 
         out = "";
 
-    
+
     var opcodes = ops.toArray();
     for(var i = 0; i < opcodes.length; i += 3)
     {
         if(opcodes[i])
         {
-            out += h(opcodes[i], 6)  + ":        " + 
+            out += h(opcodes[i], 6)  + ":        " +
                 String.pads(opcodes[i + 1], 20) + h(opcodes[i + 2], 2) + "\n";
         }
     }
 
     log(out.substr(0, out.length - 1));
     ops.clear();
-    
+
     dbg_log("----- DUMP (ip = 0x" + h(instruction_pointer >>> 0) + ") ----------")
     dbg_log("protected mode: " + protected_mode);
-    
+
     for(i in r32)
     {
         dbg_log(i + " =  0x" + h(reg32[r32[i]], 8));
     }
     dbg_log("eip =  0x" + h(get_real_ip(), 8));
-    
+
     for(i in s)
     {
         dbg_log(i + "  =  0x" + h(sreg[s[i]], 4));
     }
-    
+
     out = "";
-    
-    var flg = { "cf": getcf, "pf": getpf, "zf": getzf,  "sf": getsf, 
-                "of": getof, "df": flag_direction, "if": flag_interrupt };
-    
+
+    var flg = { "cf": getcf, "pf": getpf, "zf": getzf,  "sf": getsf,
+                "of": getof, "df": FLAG_DIRECTION, "if": FLAG_INTERRUPT };
+
     for(var i in flg)
     {
         if(+flg[i])
@@ -205,11 +205,11 @@ function dump_regs()
     }
     out += "iopl=" + getiopl();
     dbg_log(out);
-    
-    
+
+
     //dbg_log("last operation: " + h(last_op1 | 0) + ", " +  h(last_op2 | 0) + " = " +
             //h(last_result | 0) + " (" + last_op_size + " bit)")
-    
+
 }
 
 function dump_gdt_ldt()
@@ -224,8 +224,8 @@ function dump_gdt_ldt()
     {
         for(var i = 0; i < size; i += 8, addr += 8)
         {
-            var base = memory.read16(addr + 2) | 
-                    memory.read8(addr + 4) << 16 | 
+            var base = memory.read16(addr + 2) |
+                    memory.read8(addr + 4) << 16 |
                     memory.read8(addr + 7) << 24,
 
                 limit = (memory.read16(addr) | memory.read8(addr + 6) & 0xF) + 1,
@@ -247,7 +247,7 @@ function dump_gdt_ldt()
 
             if(access & 16)
             {
-                if(flags & 4) 
+                if(flags & 4)
                 {
                     flags_str += '32b ';
                 }
@@ -282,7 +282,7 @@ function dump_gdt_ldt()
             {
                 limit <<= 12;
             }
-            
+
             dbg_log(h(i & ~7, 4) + " " + h(base >>> 0, 8) + " (" + h(limit, 8) + " bytes) " +
                     flags_str + ";  dpl = " + dpl + ", a = " + access.toString(2) +
                     ", f = " + flags.toString(2));
@@ -330,8 +330,8 @@ function dump_idt()
             line += 'NP';
         }
 
-    
-        dbg_log(h(i >> 3, 4) + " " + h(base >>> 0, 8) + ", " + 
+
+        dbg_log(h(i >> 3, 4) + " " + h(base >>> 0, 8) + ", " +
                 h(selector, 4) + "; " + line + ";  dpl = " + dpl + ", t = " + type.toString(2));
     }
 }
@@ -398,7 +398,7 @@ function dump_page_directory()
             flags += 'A ';
 
         dbg_log("=== " + h(entry.address >>> 0, 8) + " | " + flags);
-        
+
         if(entry.size)
         {
             continue;
@@ -407,7 +407,7 @@ function dump_page_directory()
         for(var j = 0; j < 1024; j++)
         {
             dword = memory.read32s(entry.address + 4 * j);
-            
+
             var subentry = load_page_entry(dword, false);
 
             if(subentry)
@@ -428,7 +428,7 @@ function dump_page_directory()
 
                 if(subentry.global)
                     flags += 'G ';
-                
+
                 if(subentry.accessed)
                     flags += 'A ';
 

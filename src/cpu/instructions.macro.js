@@ -2,10 +2,10 @@
 
 
 
-var table16 = [], 
-    table32 = [], 
-    table0F_16 = [],
-    table0F_32 = [];
+var table16 = [],       // 16 位模式下的操作指令集映射
+    table32 = [],       // 32 位模式下的操作指令集映射
+    table0F_16 = [],    // 16 位模式下的 2 字节操作指令集映射，参考 http://ref.x86asm.net/#column_0F，OF 为指令前缀
+    table0F_32 = [];    // 32 位模式下的 2 字节操作指令集映射
 
 
 #define do_op() table[read_imm8()]()
@@ -48,24 +48,24 @@ var table16 = [],
     macro(0xF, (!test_le()));
 
 #define each_reg(macro)\
-    macro(0, reg_ax, reg_eax)\
-    macro(1, reg_cx, reg_ecx)\
-    macro(2, reg_dx, reg_edx)\
-    macro(3, reg_bx, reg_ebx)\
-    macro(4, reg_sp, reg_esp)\
-    macro(5, reg_bp, reg_ebp)\
-    macro(6, reg_si, reg_esi)\
-    macro(7, reg_di, reg_edi)
+    macro(0, REG_AX_INDEX, REG_EAX_INDEX)\
+    macro(1, REG_CX_INDEX, REG_ECX_INDEX)\
+    macro(2, REG_DX_INDEX, REG_EDX_INDEX)\
+    macro(3, REG_BX_INDEX, REG_EBX_INDEX)\
+    macro(4, REG_SP_INDEX, REG_ES_INDEXP_INDEX)\
+    macro(5, REG_BP_INDEX, REG_EBP_INDEX)\
+    macro(6, REG_SI_INDEX, REG_ES_INDEXI_INDEX)\
+    macro(7, REG_DI_INDEX, REG_EDI_INDEX)
 
 #define each_reg8(macro)\
-    macro(0, reg_al)\
-    macro(1, reg_cl)\
-    macro(2, reg_dl)\
-    macro(3, reg_bl)\
-    macro(4, reg_ah)\
-    macro(5, reg_ch)\
-    macro(6, reg_dh)\
-    macro(7, reg_bh)
+    macro(0, REG_AL_INDEX)\
+    macro(1, REG_CL_INDEX)\
+    macro(2, REG_DL_INDEX)\
+    macro(3, REG_BL_INDEX)\
+    macro(4, REG_AH_INDEX)\
+    macro(5, REG_CH_INDEX)\
+    macro(6, REG_DH_INDEX)\
+    macro(7, REG_BH_INDEX)
 
 // no cmp, because it uses different arguments
 #define each_arith(macro)\
@@ -137,20 +137,36 @@ var table16 = [],
         { switch_seg(reg, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 2; }, \
         { switch_seg(reg, memory.read16(get_esp_read(0))); stack_reg[reg_vsp] += 4; });
 
+// 8 位寄存器，参考：https://pdos.csail.mit.edu/6.828/2008/readings/i386/s02_03.htm
+// al, cl, dl, bl, ah, ch, dh, bh
+// 0,  4,  8,  12, 1,  5,  9,  13
+// 最后三位
+#define reg_e8  reg8[REG_8_INDEX_MAP[modrm_byte & 7]]
+#define reg_e8s reg8s[REG_8_INDEX_MAP[modrm_byte & 7]]
+// 中间三位
+#define reg_g8  reg8[REG_8_INDEX_MAP[modrm_byte >> 3 & 7]]
 
-#define reg_e8 reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]
-#define reg_e8s reg8s[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]
-#define reg_g8 reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]
 
-#define reg_e16 reg16[modrm_byte << 1 & 14]
-#define reg_e16s reg16s[modrm_byte << 1 & 14]
-#define reg_g16 reg16[modrm_byte >> 2 & 14] 
-#define reg_g16s reg16s[modrm_byte >> 2 & 14] 
+// 16 位寄存器，因为是 32 位内存，所以需要跳着选
+// ax, cx, dx, bx, sp, bp, si, di
+// 0,  2,  4,  6,  8,  10, 12, 14
+// 最后三位
+#define reg_e16     reg16[REG_16_INDEX_MAP[modrm_byte & 7]]
+#define reg_e16s    reg16s[REG_16_INDEX_MAP[modrm_byte & 7]]
+// 中间三位
+#define reg_g16     reg16[REG_16_INDEX_MAP[modrm_byte >> 3 & 7]]
+#define reg_g16s    reg16s[REG_16_INDEX_MAP[modrm_byte >> 3 & 7]]
 
+
+// 32 位寄存器
+// eax, ecx, edx, ebx, esp, ebp, esi, edi
+// 0    1    2    3    4    5    6    7
+// 最后 3 位
 #define reg_e32 reg32[modrm_byte & 7]
 #define reg_e32s reg32s[modrm_byte & 7]
-#define reg_g32 reg32[modrm_byte >> 3 & 7] 
-#define reg_g32s reg32s[modrm_byte >> 3 & 7] 
+// 中间三位
+#define reg_g32 reg32[modrm_byte >> 3 & 7]
+#define reg_g32s reg32s[modrm_byte >> 3 & 7]
 
 
 #define modrm_read(size)\
@@ -170,7 +186,7 @@ var table16 = [],
 
 
 
-// use modrm_byte to write a value to memory or register 
+// use modrm_byte to write a value to memory or register
 // (without reading it beforehand)
 #define modrm_set(arg, size) \
     if(modrm_byte < 0xC0) {\
@@ -267,17 +283,21 @@ var table16 = [],
     }
 
 
+// 操作码 opcode 映射
 #define op(n, code) table16[n] = table32[n] = function() { code };
 
+// 操作码 opcode 映射，并且跟 ModR/M 字节
 // opcode with modrm byte
 #define opm(n, code)\
     table16[n] = table32[n] = function() { var modrm_byte = read_imm8(); code };
 
+// 操作码 opcode 映射，提供 16 位和 32 位的不同代码逻辑
 // opcode that has a 16 and a 32 bit version
 #define op2(n, code16, code32)\
     table16[n] = function() { code16 };\
     table32[n] = function() { code32 };\
 
+// 操作码 opcode 映射，提供 16 位和 32 位的不同代码逻辑，并且跟 ModR/M 字节
 #define opm2(n, code16, code32)\
     table16[n] = function() { var modrm_byte = read_imm8(); code16 };\
     table32[n] = function() { var modrm_byte = read_imm8(); code32 };\
@@ -288,65 +308,65 @@ var table16 = [],
     opm2(n | 1, { write_ev16(instr ## 16(data, reg_g16)) }, { write_ev32 ## sign(instr ## 32(data, reg_g32 ## sign)) })\
     opm(n | 2, { read_e8; reg_g8 = instr ## 8(reg_g8, data); })\
     opm2(n | 3, { read_e16; reg_g16 = instr ## 16(reg_g16, data); }, { read_e32 ## sign; reg_g32s = instr ## 32(reg_g32 ## sign, data); })\
-    op(n | 4, { reg8[reg_al] = instr ## 8(reg8[reg_al], read_imm8()); })\
-    op2(n | 5, { reg16[reg_ax] = instr ## 16(reg16[reg_ax], read_imm16()); }, { reg32[reg_eax] = instr ## 32(reg32 ## sign[reg_eax], read_imm32 ## sign()); })\
-    
+    op(n | 4, { reg8[REG_AL_INDEX] = instr ## 8(reg8[REG_AL_INDEX], read_imm8()); })\
+    op2(n | 5, { reg16[REG_AX_INDEX] = instr ## 16(reg16[REG_AX_INDEX], read_imm16()); }, { reg32[REG_EAX_INDEX] = instr ## 32(reg32 ## sign[REG_EAX_INDEX], read_imm32 ## sign()); })\
+
 
 
 // instructions start here
 
 arith_group(0x00, add, );
 
-op2(0x06, { push16(sreg[reg_es]); }, { push32(sreg[reg_es]); });
-pop_sreg_op(0x07, reg_es);
-//op2(0x07, 
-//    { safe_pop16(sreg[reg_es]); switch_seg(reg_es, memory.read16(get_esp_read(0))); }, 
-//    { safe_pop32s(sreg[reg_es]); switch_seg(reg_es); });
+op2(0x06, { push16(sreg[REG_ES_INDEX]); }, { push32(sreg[REG_ES_INDEX]); });
+pop_sreg_op(0x07, REG_ES_INDEX);
+//op2(0x07,
+//    { safe_pop16(sreg[REG_ES_INDEX]); switch_seg(REG_ES_INDEX, memory.read16(get_esp_read(0))); },
+//    { safe_pop32s(sreg[REG_ES_INDEX]); switch_seg(REG_ES_INDEX); });
 
 arith_group(0x08, or, s);
 
-op2(0x0E, { push16(sreg[reg_cs]); }, { push32(sreg[reg_cs]); });
+op2(0x0E, { push16(sreg[REG_CS_INDEX]); }, { push32(sreg[REG_CS_INDEX]); });
 op(0x0F, { table0F[read_imm8()](); });
 
 arith_group(0x10, adc, );
 
-op2(0x16, { push16(sreg[reg_ss]); }, { push32(sreg[reg_ss]); });
-pop_sreg_op(0x17, reg_ss);
-//op2(0x17, 
-//    { safe_pop16(sreg[reg_ss]); switch_seg(reg_ss); }, 
-//    { safe_pop32s(sreg[reg_ss]); switch_seg(reg_ss); });
+op2(0x16, { push16(sreg[REG_SS_INDEX]); }, { push32(sreg[REG_SS_INDEX]); });
+pop_sreg_op(0x17, REG_SS_INDEX);
+//op2(0x17,
+//    { safe_pop16(sreg[REG_SS_INDEX]); switch_seg(REG_SS_INDEX); },
+//    { safe_pop32s(sreg[REG_SS_INDEX]); switch_seg(REG_SS_INDEX); });
 
 arith_group(0x18, sbb, );
 
-op2(0x1E, { push16(sreg[reg_ds]); }, { push32(sreg[reg_ds]); });
-pop_sreg_op(0x1F, reg_ds);
-//op2(0x1F, 
-//    { safe_pop16(sreg[reg_ds]); switch_seg(reg_ds); }, 
-//    { safe_pop32s(sreg[reg_ds]); switch_seg(reg_ds); });
+op2(0x1E, { push16(sreg[REG_DS_INDEX]); }, { push32(sreg[REG_DS_INDEX]); });
+pop_sreg_op(0x1F, REG_DS_INDEX);
+//op2(0x1F,
+//    { safe_pop16(sreg[REG_DS_INDEX]); switch_seg(REG_DS_INDEX); },
+//    { safe_pop32s(sreg[REG_DS_INDEX]); switch_seg(REG_DS_INDEX); });
 
 arith_group(0x20, and, s);
 
-op(0x26, { seg_prefix(reg_es); });
+op(0x26, { seg_prefix(REG_ES_INDEX); });
 op(0x27, { bcd_daa(); });
 
 arith_group(0x28, sub, );
 
-op(0x2E, { seg_prefix(reg_cs); });
+op(0x2E, { seg_prefix(REG_CS_INDEX); });
 op(0x2F, { bcd_das(); });
 
 arith_group(0x30, xor, s);
 
-op(0x36, { seg_prefix(reg_ss); });
+op(0x36, { seg_prefix(REG_SS_INDEX); });
 op(0x37, { bcd_aaa(); });
 
 opm(0x38, { read_e8; cmp8(data, reg_g8); })
 opm2(0x39, { read_e16; cmp16(data, reg_g16); }, { read_e32; cmp32(data, reg_g32); })
 opm(0x3A, { read_e8; cmp8(reg_g8, data); })
 opm2(0x3B, { read_e16; cmp16(reg_g16, data); }, { read_e32; cmp32(reg_g32, data); })
-op(0x3C, { cmp8(reg8[reg_al], read_imm8()); })
-op2(0x3D, { cmp16(reg16[reg_ax], read_imm16()); }, { cmp32(reg32[reg_eax], read_imm32()); })
+op(0x3C, { cmp8(reg8[REG_AL_INDEX], read_imm8()); })
+op2(0x3D, { cmp16(reg16[REG_AX_INDEX], read_imm16()); }, { cmp32(reg32[REG_EAX_INDEX], read_imm32()); })
 
-op(0x3E, { seg_prefix(reg_ds); });
+op(0x3E, { seg_prefix(REG_DS_INDEX); });
 op(0x3F, { bcd_aas(); });
 
 
@@ -373,13 +393,13 @@ op2(0x60, { pusha16(); }, { pusha32(); });
 op2(0x61, { popa16(); }, { popa32(); });
 
 op(0x62, { throw unimpl("bound instruction"); });
-opm(0x63, { 
+opm(0x63, {
     // arpl
     write_ev16(arpl(data, modrm_byte >> 2 & 14));
 });
 
-op(0x64, { seg_prefix(reg_fs); });
-op(0x65, { seg_prefix(reg_gs); });
+op(0x64, { seg_prefix(REG_FS_INDEX); });
+op(0x65, { seg_prefix(REG_GS_INDEX); });
 
 op(0x66, {
     // Operand-size override prefix
@@ -444,7 +464,7 @@ op2(0x6F, { outsw(); }, { outsd(); });
 each_jcc(group70);
 
 
-opm(0x80, { 
+opm(0x80, {
     sub_op(
         { write_e8(add8(data, read_imm8())); },
         { write_e8( or8(data, read_imm8())); },
@@ -479,7 +499,7 @@ opm2(0x81, {
         { read_e32;  cmp32(data, read_imm32()); }
     )
 });
-op(0x82, { 
+op(0x82, {
     table[0x80](); // alias
 });
 opm2(0x83, {
@@ -511,10 +531,10 @@ opm2(0x85, { read_e16; test16(data, reg_g16); }, { read_e32s; test32(data, reg_g
 
 
 opm(0x86, { write_e8(xchg8(data, modrm_byte)); });
-opm2(0x87, { 
-    write_ev16(xchg16(data, modrm_byte)); 
+opm2(0x87, {
+    write_ev16(xchg16(data, modrm_byte));
 }, {
-    write_ev32(xchg32(data, modrm_byte)); 
+    write_ev32(xchg32(data, modrm_byte));
 });
 
 opm(0x88, { set_eb(reg_g8); })
@@ -543,7 +563,7 @@ opm(0x8E, {
 
     switch_seg(mod, data);
 
-    if(mod === reg_ss)
+    if(mod === REG_SS_INDEX)
     {
         // TODO
         // run next instruction, so no irqs are handled
@@ -576,14 +596,14 @@ each_reg(group90)
 op(0x90,  /* nop */ );
 
 
-op2(0x98, 
-    { /* cbw */ reg16[reg_ax] = reg8s[reg_al]; },
-    { /* cwde */ reg32[reg_eax] = reg16s[reg_ax]; });
+op2(0x98,
+    { /* cbw */ reg16[REG_AX_INDEX] = reg8s[REG_AL_INDEX]; },
+    { /* cwde */ reg32[REG_EAX_INDEX] = reg16s[REG_AX_INDEX]; });
 
-op2(0x99, 
-    { /* cwd */ reg16[reg_dx] = reg16s[reg_ax] >> 15; },
-    { /* cdq */ reg32[reg_edx] = reg32s[reg_eax] >> 31; });
-    
+op2(0x99,
+    { /* cwd */ reg16[REG_DX_INDEX] = reg16s[REG_AX_INDEX] >> 15; },
+    { /* cdq */ reg32[REG_EDX_INDEX] = reg32s[REG_EAX_INDEX] >> 31; });
+
 op2(0x9A, {
     // callf
 
@@ -596,11 +616,11 @@ op2(0x9A, {
         var new_ip = read_imm16();
         var new_cs = read_imm16();
 
-        push16(sreg[reg_cs]);
+        push16(sreg[REG_CS_INDEX]);
         push16(get_real_ip());
 
-        switch_seg(reg_cs, new_cs);
-        instruction_pointer = get_seg(reg_cs) + new_ip | 0;
+        switch_seg(REG_CS_INDEX, new_cs);
+        instruction_pointer = get_seg(REG_CS_INDEX) + new_ip | 0;
     }
 }, {
     if(protected_mode)
@@ -612,11 +632,11 @@ op2(0x9A, {
         var new_ip = read_imm32s();
         var new_cs = read_imm16();
 
-        push32(sreg[reg_cs]);
+        push32(sreg[REG_CS_INDEX]);
         push32(get_real_ip());
 
-        switch_seg(reg_cs, new_cs);
-        instruction_pointer = get_seg(reg_cs) + new_ip | 0;
+        switch_seg(REG_CS_INDEX, new_cs);
+        instruction_pointer = get_seg(REG_CS_INDEX) + new_ip | 0;
     }
 });
 
@@ -648,38 +668,38 @@ op2(0x9D, {
 });
 op(0x9E, {
     // sahf
-    flags = (flags & ~0xFF) | reg8[reg_ah];
-    flags = (flags & flags_mask) | flags_default;
+    flags = (flags & ~0xFF) | reg8[REG_AH_INDEX];
+    flags = (flags & FLAG_MASK) | FLAG_DEFAULT;
     flags_changed = 0;
 });
 op(0x9F, {
     // lahf
     load_flags();
-    reg8[reg_ah] = flags;
+    reg8[REG_AH_INDEX] = flags;
 });
 
 op(0xA0, {
     // mov
     var data = safe_read8(read_moffs());
-    reg8[reg_al] = data;
+    reg8[REG_AL_INDEX] = data;
 });
 op2(0xA1, {
     // mov
     var data = safe_read16(read_moffs());
-    reg16[reg_ax] = data;
+    reg16[REG_AX_INDEX] = data;
 }, {
     var data = safe_read32s(read_moffs());
-    reg32[reg_eax] = data;
+    reg32[REG_EAX_INDEX] = data;
 });
 op(0xA2, {
     // mov
-    safe_write8(read_moffs(), reg8[reg_al]);
+    safe_write8(read_moffs(), reg8[REG_AL_INDEX]);
 });
 op2(0xA3, {
     // mov
-    safe_write16(read_moffs(), reg16[reg_ax]);
+    safe_write16(read_moffs(), reg16[REG_AX_INDEX]);
 }, {
-    safe_write32(read_moffs(), reg32s[reg_eax]);
+    safe_write32(read_moffs(), reg32s[REG_EAX_INDEX]);
 });
 
 op(0xA4, { movsb(); });
@@ -688,12 +708,12 @@ op(0xA6, { cmpsb(); });
 op2(0xA7, { cmpsw(); }, { cmpsd(); });
 
 op(0xA8, {
-    test8(reg8[reg_al], read_imm8());
+    test8(reg8[REG_AL_INDEX], read_imm8());
 });
 op2(0xA9, {
-    test16(reg16[reg_ax], read_imm16());
+    test16(reg16[REG_AX_INDEX], read_imm16());
 }, {
-    test32(reg32s[reg_eax], read_imm32s());
+    test32(reg32s[REG_EAX_INDEX], read_imm32s());
 });
 
 op(0xAA, { stosb(); });
@@ -713,7 +733,7 @@ each_reg8(groupB0);
 each_reg(groupB8);
 
 
-opm(0xC0, { 
+opm(0xC0, {
     sub_op(
         { write_e8(rol8(data, read_imm8() & 31)); },
         { write_e8(ror8(data, read_imm8() & 31)); },
@@ -725,7 +745,7 @@ opm(0xC0, {
         { write_e8(sar8(data, read_imm8() & 31)); }
     )
 });
-opm2(0xC1, { 
+opm2(0xC1, {
     sub_op(
         { write_ev16(rol16(data, read_imm8() & 31)); },
         { write_ev16(ror16(data, read_imm8() & 31)); },
@@ -753,29 +773,29 @@ op2(0xC2, {
     // retn
     var imm16 = read_imm16();
 
-    instruction_pointer = get_seg(reg_cs) + pop16() | 0;
+    instruction_pointer = get_seg(REG_CS_INDEX) + pop16() | 0;
     // TODO regv
-    reg32[reg_esp] += imm16;
+    reg32[REG_ES_INDEXP_INDEX] += imm16;
 }, {
     // retn
     var imm16 = read_imm16();
 
-    instruction_pointer = get_seg(reg_cs) + pop32s() | 0;
-    reg32[reg_esp] += imm16;
+    instruction_pointer = get_seg(REG_CS_INDEX) + pop32s() | 0;
+    reg32[REG_ES_INDEXP_INDEX] += imm16;
 });
 op2(0xC3, {
     // retn
-    instruction_pointer = get_seg(reg_cs) + pop16() | 0;;
+    instruction_pointer = get_seg(REG_CS_INDEX) + pop16() | 0;;
 }, {
     // retn
-    instruction_pointer = get_seg(reg_cs) + pop32s() | 0;;
+    instruction_pointer = get_seg(REG_CS_INDEX) + pop32s() | 0;;
 });
 
 opm(0xC4, {
-    lss_op(reg_es);
+    lss_op(REG_ES_INDEX);
 });
 opm(0xC5, {
-    lss_op(reg_ds);
+    lss_op(REG_DS_INDEX);
 });
 
 opm(0xC6, { set_eb(read_imm8()); })
@@ -785,10 +805,10 @@ op2(0xC8, { enter16(); }, { enter32(); });
 op2(0xC9, {
     // leave
     stack_reg[reg_vsp] = stack_reg[reg_vbp];
-    reg16[reg_bp] = pop16();
+    reg16[REG_BP_INDEX] = pop16();
 }, {
     stack_reg[reg_vsp] = stack_reg[reg_vbp];
-    reg32[reg_ebp] = pop32s();
+    reg32[REG_EBP_INDEX] = pop32s();
 });
 op2(0xCA, {
     // retf
@@ -799,11 +819,11 @@ op2(0xCA, {
     var imm16 = read_imm16();
     var ip = pop16();
 
-    switch_seg(reg_cs, pop16());
-    instruction_pointer = get_seg(reg_cs) + ip | 0;
-    reg16[reg_sp] += imm16;
+    switch_seg(REG_CS_INDEX, pop16());
+    instruction_pointer = get_seg(REG_CS_INDEX) + ip | 0;
+    reg16[REG_SP_INDEX] += imm16;
 }, {
-    // retf 
+    // retf
     var imm16 = read_imm16();
 
     if(protected_mode)
@@ -811,8 +831,8 @@ op2(0xCA, {
         //dbg_log("retf");
         var ip = pop32s();
 
-        switch_seg(reg_cs, pop32s() & 0xFFFF);
-        instruction_pointer = get_seg(reg_cs) + ip | 0;
+        switch_seg(REG_CS_INDEX, pop32s() & 0xFFFF);
+        instruction_pointer = get_seg(REG_CS_INDEX) + ip | 0;
 
         stack_reg[reg_vsp] += imm16;
     }
@@ -830,25 +850,25 @@ op2(0xCB, {
     else
     {
         var ip = pop16();
-        switch_seg(reg_cs, pop16());
-        instruction_pointer = get_seg(reg_cs) + ip | 0;
+        switch_seg(REG_CS_INDEX, pop16());
+        instruction_pointer = get_seg(REG_CS_INDEX) + ip | 0;
     }
 }, {
-    // retf 
+    // retf
 
     if(protected_mode)
     {
         var ip = pop32s();
 
-        switch_seg(reg_cs, pop32s() & 0xFFFF);
-        instruction_pointer = get_seg(reg_cs) + ip | 0;
+        switch_seg(REG_CS_INDEX, pop32s() & 0xFFFF);
+        instruction_pointer = get_seg(REG_CS_INDEX) + ip | 0;
     }
     else
     {
         var ip = pop32s();
 
-        switch_seg(reg_cs, pop32s() & 0xFFFF);
-        instruction_pointer = get_seg(reg_cs) + ip | 0;
+        switch_seg(REG_CS_INDEX, pop32s() & 0xFFFF);
+        instruction_pointer = get_seg(REG_CS_INDEX) + ip | 0;
     }
 });
 
@@ -857,7 +877,7 @@ op(0xCC, {
     call_interrupt_vector(3, true, false);
 });
 op(0xCD, {
-    // INT 
+    // INT
     var imm8 = read_imm8();
 
     call_interrupt_vector(imm8, true, false);
@@ -878,10 +898,10 @@ op2(0xCF, {
     }
     var ip = pop16();
 
-    switch_seg(reg_cs, pop16());
+    switch_seg(REG_CS_INDEX, pop16());
     var new_flags = pop16();
 
-    instruction_pointer = ip + get_seg(reg_cs) | 0;
+    instruction_pointer = ip + get_seg(REG_CS_INDEX) | 0;
     flags = new_flags;
     flags_changed = 0;
 
@@ -894,34 +914,34 @@ op2(0xCF, {
     }
     else
     {
-        if(flags & flag_nt)
+        if(flags & FLAG_NESTED_TASK)
         {
             if(DEBUG) throw "unimplemented nt";
         }
-        if(flags & flag_vm)
+        if(flags & FLAG_VIRTUAL_8086_MODE)
         {
             if(DEBUG) throw "unimplemented vm";
         }
 
     }
-    //dbg_log("pop eip from " + h(reg32[reg_esp], 8));
+    //dbg_log("pop eip from " + h(reg32[REG_ES_INDEXP_INDEX], 8));
     instruction_pointer = pop32s();
     //dbg_log("IRET | from " + h(previous_ip) + " to " + h(instruction_pointer));
 
-    sreg[reg_cs] = pop32s();
+    sreg[REG_CS_INDEX] = pop32s();
 
-    //instruction_pointer += get_seg(reg_cs);
+    //instruction_pointer += get_seg(REG_CS_INDEX);
 
     var new_flags = pop32s();
 
-    if(new_flags & flag_vm)
+    if(new_flags & FLAG_VIRTUAL_8086_MODE)
     {
         if(DEBUG) throw "unimplemented";
     }
 
     // protected mode return
 
-    var info = lookup_segment_selector(sreg[reg_cs]);
+    var info = lookup_segment_selector(sreg[REG_CS_INDEX]);
 
     if(info.is_null)
     {
@@ -951,15 +971,15 @@ op2(0xCF, {
         var temp_ss = pop32s();
 
 
-        reg32[reg_esp] = temp_esp;
+        reg32[REG_ES_INDEXP_INDEX] = temp_esp;
 
         update_flags(new_flags);
 
         cpl = info.rpl;
-        switch_seg(reg_ss, temp_ss & 0xFFFF);
+        switch_seg(REG_SS_INDEX, temp_ss & 0xFFFF);
 
-        //dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) + 
-        //        " cs:eip=" + h(sreg[reg_cs],4) + ":" + h(get_real_ip(), 8) +
+        //dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) +
+        //        " cs:eip=" + h(sreg[REG_CS_INDEX],4) + ":" + h(get_real_ip(), 8) +
         //        " ss:esp=" + h(temp_ss & 0xFFFF, 2) + ":" + h(temp_esp, 8), LOG_CPU);
 
         cpl_changed();
@@ -973,14 +993,14 @@ op2(0xCF, {
         //dbg_log("iret to " + h(instruction_pointer));
     }
 
-    //dbg_log("iret if=" + (flags & flag_interrupt) + " cpl=" + cpl);
+    //dbg_log("iret if=" + (flags & FLAG_INTERRUPT) + " cpl=" + cpl);
     dbg_assert(!page_fault);
 
     handle_irqs();
 
 });
 
-opm(0xD0, { 
+opm(0xD0, {
     sub_op(
         { write_e8(rol8(data, 1)); },
         { write_e8(ror8(data, 1)); },
@@ -992,7 +1012,7 @@ opm(0xD0, {
         { write_e8(sar8(data, 1)); }
     )
 });
-opm2(0xD1, { 
+opm2(0xD1, {
     sub_op(
         { write_ev16(rol16(data, 1)); },
         { write_ev16(ror16(data, 1)); },
@@ -1016,8 +1036,8 @@ opm2(0xD1, {
     )
 });
 
-opm(0xD2, { 
-    var shift = reg8[reg_cl] & 31;
+opm(0xD2, {
+    var shift = reg8[REG_CL_INDEX] & 31;
     sub_op(
         { write_e8(rol8(data, shift)); },
         { write_e8(ror8(data, shift)); },
@@ -1029,8 +1049,8 @@ opm(0xD2, {
         { write_e8(sar8(data, shift)); }
     )
 });
-opm2(0xD3, { 
-    var shift = reg8[reg_cl] & 31;
+opm2(0xD3, {
+    var shift = reg8[REG_CL_INDEX] & 31;
     sub_op(
         { write_ev16(rol16(data, shift)); },
         { write_ev16(ror16(data, shift)); },
@@ -1042,7 +1062,7 @@ opm2(0xD3, {
         { write_ev16(sar16(data, shift)); }
     )
 }, {
-    var shift = reg8[reg_cl] & 31;
+    var shift = reg8[REG_CL_INDEX] & 31;
     sub_op(
         { write_ev32(rol32(data, shift)); },
         { write_ev32(ror32(data, shift)); },
@@ -1070,11 +1090,11 @@ op(0xD7, {
     // xlat
     if(address_size_32)
     {
-        reg8[reg_al] = safe_read8(get_seg_prefix(reg_ds) + reg32s[reg_ebx] + reg8[reg_al]);
+        reg8[REG_AL_INDEX] = safe_read8(get_seg_prefix(REG_DS_INDEX) + reg32s[REG_EBX_INDEX] + reg8[REG_AL_INDEX]);
     }
     else
     {
-        reg8[reg_al] = safe_read8(get_seg_prefix(reg_ds) + reg16[reg_bx] + reg8[reg_al]);
+        reg8[REG_AL_INDEX] = safe_read8(get_seg_prefix(REG_DS_INDEX) + reg16[REG_BX_INDEX] + reg8[REG_AL_INDEX]);
     }
 });
 
@@ -1103,10 +1123,10 @@ op(0xE1, { loope(); });
 op(0xE2, { loop(); });
 op(0xE3, { jcxz(); });
 
-op(0xE4, { reg8[reg_al] = in8(read_imm8()); });
-op2(0xE5, { reg16[reg_ax] = in16(read_imm8()); }, { reg32[reg_eax] = in32(read_imm8()); });
-op(0xE6, { out8(read_imm8(), reg8[reg_al]); });
-op2(0xE7, { out16(read_imm8(), reg16[reg_ax]); }, { out32(read_imm8(), reg32s[reg_eax]); });
+op(0xE4, { reg8[REG_AL_INDEX] = in8(read_imm8()); });
+op2(0xE5, { reg16[REG_AX_INDEX] = in16(read_imm8()); }, { reg32[REG_EAX_INDEX] = in32(read_imm8()); });
+op(0xE6, { out8(read_imm8(), reg8[REG_AL_INDEX]); });
+op2(0xE7, { out16(read_imm8(), reg16[REG_AX_INDEX]); }, { out32(read_imm8(), reg32s[REG_EAX_INDEX]); });
 
 op2(0xE8, {
     // call
@@ -1133,15 +1153,15 @@ op2(0xE9, {
 op2(0xEA, {
     // jmpf
     var ip = read_imm16();
-    switch_seg(reg_cs, read_imm16());
+    switch_seg(REG_CS_INDEX, read_imm16());
 
-    instruction_pointer = ip + get_seg(reg_cs) | 0;
+    instruction_pointer = ip + get_seg(REG_CS_INDEX) | 0;
 }, {
     // jmpf
     var ip = read_imm32s();
-    switch_seg(reg_cs, read_imm16());
+    switch_seg(REG_CS_INDEX, read_imm16());
 
-    instruction_pointer = ip + get_seg(reg_cs) | 0;
+    instruction_pointer = ip + get_seg(REG_CS_INDEX) | 0;
 });
 op(0xEB, {
     // jmp near
@@ -1149,10 +1169,10 @@ op(0xEB, {
     instruction_pointer = instruction_pointer + imm8 | 0;
 });
 
-op(0xEC, { reg8[reg_al] = in8(reg16[reg_dx]); });
-op2(0xED, { reg16[reg_ax] = in16(reg16[reg_dx]); }, { reg32[reg_eax] = in32(reg16[reg_dx]); });
-op(0xEE, { out8(reg16[reg_dx], reg8[reg_al]); });
-op2(0xEF, { out16(reg16[reg_dx], reg16[reg_ax]); }, { out32(reg16[reg_dx], reg32s[reg_eax]); });
+op(0xEC, { reg8[REG_AL_INDEX] = in8(reg16[REG_DX_INDEX]); });
+op2(0xED, { reg16[REG_AX_INDEX] = in16(reg16[REG_DX_INDEX]); }, { reg32[REG_EAX_INDEX] = in32(reg16[REG_DX_INDEX]); });
+op(0xEE, { out8(reg16[REG_DX_INDEX], reg8[REG_AL_INDEX]); });
+op2(0xEF, { out16(reg16[REG_DX_INDEX], reg16[REG_AX_INDEX]); }, { out32(reg16[REG_DX_INDEX], reg32s[REG_EAX_INDEX]); });
 
 op(0xF0, {
     // lock
@@ -1191,7 +1211,7 @@ op(0xF4, {
     }
 
     // hlt
-    if((flags & flag_interrupt) === 0)
+    if((flags & FLAG_INTERRUPT) === 0)
     {
         log("cpu halted");
         stopped = true;
@@ -1252,12 +1272,12 @@ opm2(0xF7, {
 
 op(0xF8, {
     // clc
-    flags &= ~flag_carry;
+    flags &= ~FLAG_CARRY;
     flags_changed &= ~1;
 });
 op(0xF9, {
     // stc
-    flags |= flag_carry;
+    flags |= FLAG_CARRY;
     flags_changed &= ~1;
 });
 
@@ -1270,7 +1290,7 @@ op(0xFA, {
     }
     else
     {
-        flags &= ~flag_interrupt;
+        flags &= ~FLAG_INTERRUPT;
     }
 });
 op(0xFB, {
@@ -1282,7 +1302,7 @@ op(0xFB, {
     }
     else
     {
-        flags |= flag_interrupt;
+        flags |= FLAG_INTERRUPT;
         handle_irqs();
     }
 
@@ -1290,11 +1310,11 @@ op(0xFB, {
 
 op(0xFC, {
     // cld
-    flags &= ~flag_direction;
+    flags &= ~FLAG_DIRECTION;
 });
 op(0xFD, {
     // std
-    flags |= flag_direction;
+    flags |= FLAG_DIRECTION;
 });
 
 opm(0xFE, {
@@ -1302,11 +1322,11 @@ opm(0xFE, {
 
     if(mod === 0)
     {
-        write_e8(inc8(data)); 
+        write_e8(inc8(data));
     }
     else if(mod === 8)
     {
-        write_e8(dec8(data)); 
+        write_e8(dec8(data));
     }
     else
     {
@@ -1317,12 +1337,12 @@ opm2(0xFF, {
     sub_op(
         { write_ev16(inc16(data)); },
         { write_ev16(dec16(data)); },
-        { 
+        {
             // 2, call near
             read_e16;
             push16(get_real_ip());
-            
-            instruction_pointer = get_seg(reg_cs) + data | 0;
+
+            instruction_pointer = get_seg(REG_CS_INDEX) + data | 0;
         },
         {
             // 3, callf
@@ -1334,17 +1354,17 @@ opm2(0xFF, {
 
             var virt_addr = modrm_resolve(modrm_byte);
 
-            push16(sreg[reg_cs]);
+            push16(sreg[REG_CS_INDEX]);
             push16(get_real_ip());
 
-            switch_seg(reg_cs, safe_read16(virt_addr + 2));
-            instruction_pointer = get_seg(reg_cs) + safe_read16(virt_addr) | 0;
+            switch_seg(REG_CS_INDEX, safe_read16(virt_addr + 2));
+            instruction_pointer = get_seg(REG_CS_INDEX) + safe_read16(virt_addr) | 0;
             dbg_assert(!page_fault);
         },
         {
             // 4, jmp near
             read_e16;
-            instruction_pointer = get_seg(reg_cs) + data | 0;
+            instruction_pointer = get_seg(REG_CS_INDEX) + data | 0;
         },
         {
             // 5, jmpf
@@ -1356,8 +1376,8 @@ opm2(0xFF, {
 
             var virt_addr = modrm_resolve(modrm_byte);
 
-            switch_seg(reg_cs, safe_read16(virt_addr + 2));
-            instruction_pointer = get_seg(reg_cs) + safe_read16(virt_addr) | 0;
+            switch_seg(REG_CS_INDEX, safe_read16(virt_addr + 2));
+            instruction_pointer = get_seg(REG_CS_INDEX) + safe_read16(virt_addr) | 0;
 
             // TODO safe read
         },
@@ -1375,12 +1395,12 @@ opm2(0xFF, {
 
         { write_ev32(inc32(data)); },
         { write_ev32(dec32(data)); },
-        { 
+        {
             // 2, call near
             read_e32s;
             push32(get_real_ip());
 
-            instruction_pointer = get_seg(reg_cs) + data | 0;
+            instruction_pointer = get_seg(REG_CS_INDEX) + data | 0;
         },
         {
             // 3, callf
@@ -1395,16 +1415,16 @@ opm2(0xFF, {
             var new_ip = safe_read32s(virt_addr);
 
 
-            push32(sreg[reg_cs]);
+            push32(sreg[REG_CS_INDEX]);
             push32(get_real_ip());
 
-            switch_seg(reg_cs, new_cs);
-            instruction_pointer = get_seg(reg_cs) + new_ip | 0;
+            switch_seg(REG_CS_INDEX, new_cs);
+            instruction_pointer = get_seg(REG_CS_INDEX) + new_ip | 0;
         },
         {
             // 4, jmp near
             read_e32s;
-            instruction_pointer = get_seg(reg_cs) + data | 0;
+            instruction_pointer = get_seg(REG_CS_INDEX) + data | 0;
         },
         {
             // 5, jmpf
@@ -1418,8 +1438,8 @@ opm2(0xFF, {
             var new_cs = safe_read16(virt_addr + 4);
             var new_ip = safe_read32s(virt_addr);
 
-            switch_seg(reg_cs, new_cs);
-            instruction_pointer = get_seg(reg_cs) + new_ip | 0;
+            switch_seg(REG_CS_INDEX, new_cs);
+            instruction_pointer = get_seg(REG_CS_INDEX) + new_ip | 0;
         },
         {
             // push
@@ -1501,7 +1521,7 @@ opm(0x01, {
     {
         // override prefix, so modrm_resolve does not return the segment part
         // only lgdt and lidt and only in protected mode
-        segment_prefix = reg_noseg; 
+        segment_prefix = REG_NOSEG_INDEX;
     }
 
     var addr = modrm_resolve(modrm_byte);
@@ -1532,7 +1552,7 @@ opm(0x01, {
                 gdtr_offset &= 0xFFFFFF;
             }
 
-            dbg_log("eax " + h(reg32[reg_eax]), LOG_CPU);
+            dbg_log("eax " + h(reg32[REG_EAX_INDEX]), LOG_CPU);
             dbg_log("gdt loaded from " + h(addr), LOG_CPU);
             dbg_log("gdt at " + h(gdtr_offset) + ", " + gdtr_size + " bytes", LOG_CPU);
             //dump_gdt_ldt();
@@ -1550,7 +1570,7 @@ opm(0x01, {
                 idtr_offset &= 0xFFFFFF;
             }
 
-            //dbg_log("[" + h(instruction_pointer) + "] idt at " + 
+            //dbg_log("[" + h(instruction_pointer) + "] idt at " +
             //        h(idtr_offset) + ", " + idtr_size + " bytes " + h(addr), LOG_CPU);
             break;
         case 7:
@@ -1624,7 +1644,7 @@ unimplemented_sse(0x17);
 
 opm(0x18, {
     // prefetch
-    // nop for us 
+    // nop for us
     if(operand_size_32) {
         read_e32s;
     }
@@ -1713,7 +1733,7 @@ opm(0x22, {
             cr0_changed();
             //dbg_log("cr1 = " + bits(memory.read32s(addr)), LOG_CPU);
             break;
-        case 3: 
+        case 3:
             cr3 = data;
             dbg_assert((cr3 & 0xFFF) === 0);
             clear_tlb();
@@ -1730,7 +1750,7 @@ opm(0x22, {
             cr4 = data;
             page_size_extensions = (cr4 & 16) ? PSE_ENABLED : 0;
             dbg_log("cr4 set to " + h(cr4), LOG_CPU);
-                
+
             break;
         default:
             dbg_log(modrm_byte >> 3 & 7);
@@ -1766,13 +1786,13 @@ todo_op(0x30);
 
 op(0x31, {
     // rdtsc - read timestamp counter
-    
-    //var cycles = (Date.now() - emulation_start) / 1000 * 3000000;
-    //reg32[reg_eax] = cycles;
-    //reg32[reg_edx] = cycles / 0x100000000;
 
-    reg32[reg_eax] = cpu_timestamp_counter;
-    reg32[reg_edx] = cpu_timestamp_counter / 0x100000000;
+    //var cycles = (Date.now() - emulation_start) / 1000 * 3000000;
+    //reg32[REG_EAX_INDEX] = cycles;
+    //reg32[REG_EDX_INDEX] = cycles / 0x100000000;
+
+    reg32[REG_EAX_INDEX] = cpu_timestamp_counter;
+    reg32[REG_EDX_INDEX] = cpu_timestamp_counter / 0x100000000;
 });
 
 // rdmsr
@@ -1880,11 +1900,11 @@ each_jcc(group0F80)
 each_jcc(group0F90);
 
 
-op2(0xA0, { push16(sreg[reg_fs]); }, { push32(sreg[reg_fs]); });
-pop_sreg_op(0xA1, reg_fs);
-//op2(0xA1, 
-//    { safe_pop16(sreg[reg_fs]); switch_seg(reg_fs); }, 
-//    { safe_pop32s(sreg[reg_fs]); switch_seg(reg_fs); });
+op2(0xA0, { push16(sreg[REG_FS_INDEX]); }, { push32(sreg[REG_FS_INDEX]); });
+pop_sreg_op(0xA1, REG_FS_INDEX);
+//op2(0xA1,
+//    { safe_pop16(sreg[REG_FS_INDEX]); switch_seg(REG_FS_INDEX); },
+//    { safe_pop32s(sreg[REG_FS_INDEX]); switch_seg(REG_FS_INDEX); });
 
 op(0xA2, { cpuid(); });
 
@@ -1919,19 +1939,19 @@ opm2(0xA4, {
     write_ev32(shld32(data, reg_g32, read_imm8() & 31));
 });
 opm2(0xA5, {
-    write_ev16(shld16(data, reg_g16, reg8[reg_cl] & 31));
+    write_ev16(shld16(data, reg_g16, reg8[REG_CL_INDEX] & 31));
 }, {
-    write_ev32(shld32(data, reg_g32, reg8[reg_cl] & 31));
+    write_ev32(shld32(data, reg_g32, reg8[REG_CL_INDEX] & 31));
 });
 
 undefined_instruction(0xA6);
 undefined_instruction(0xA7);
 
-op2(0xA8, { push16(sreg[reg_gs]); }, { push32(sreg[reg_gs]); });
-pop_sreg_op(0xA9, reg_gs);
-//op2(0xA9, 
-//    { safe_pop16(sreg[reg_gs]); switch_seg(reg_gs); }, 
-//    { safe_pop32s(sreg[reg_gs]); switch_seg(reg_gs); });
+op2(0xA8, { push16(sreg[REG_GS_INDEX]); }, { push32(sreg[REG_GS_INDEX]); });
+pop_sreg_op(0xA9, REG_GS_INDEX);
+//op2(0xA9,
+//    { safe_pop16(sreg[REG_GS_INDEX]); switch_seg(REG_GS_INDEX); },
+//    { safe_pop32s(sreg[REG_GS_INDEX]); switch_seg(REG_GS_INDEX); });
 
 // rsm
 todo_op(0xAA);
@@ -1947,9 +1967,9 @@ opm2(0xAC, {
     write_ev32(shrd32(data, reg_g32, read_imm8() & 31));
 });
 opm2(0xAD, {
-    write_ev16(shrd16(data, reg_g16, reg8[reg_cl] & 31));
+    write_ev16(shrd16(data, reg_g16, reg8[REG_CL_INDEX] & 31));
 }, {
-    write_ev32(shrd32(data, reg_g32, reg8[reg_cl] & 31));
+    write_ev32(shrd32(data, reg_g32, reg8[REG_CL_INDEX] & 31));
 });
 
 todo_op(0xAE);
@@ -1974,7 +1994,7 @@ opm(0xB0, {
         data = reg_e8;
 
 
-    cmp8(data, reg8[reg_al]);
+    cmp8(data, reg8[REG_AL_INDEX]);
 
     if(getzf())
     {
@@ -1985,7 +2005,7 @@ opm(0xB0, {
     }
     else
     {
-        reg8[reg_al] = data;
+        reg8[REG_AL_INDEX] = data;
     }
 });
 opm(0xB1, {
@@ -2000,7 +2020,7 @@ opm(0xB1, {
         else
             data = reg_e32;
 
-        cmp32(data, reg32[reg_eax]);
+        cmp32(data, reg32[REG_EAX_INDEX]);
 
         if(getzf())
         {
@@ -2011,7 +2031,7 @@ opm(0xB1, {
         }
         else
         {
-            reg32[reg_eax] = data;
+            reg32[REG_EAX_INDEX] = data;
         }
     }
     else
@@ -2023,8 +2043,8 @@ opm(0xB1, {
         }
         else
             data = reg_e16;
-        
-        cmp16(data, reg16[reg_ax]);
+
+        cmp16(data, reg16[REG_AX_INDEX]);
 
         if(getzf())
         {
@@ -2035,14 +2055,14 @@ opm(0xB1, {
         }
         else
         {
-            reg16[reg_ax] = data;
+            reg16[REG_AX_INDEX] = data;
         }
     }
 });
 
 // lss
-opm(0xB2, { 
-    lss_op(reg_ss);
+opm(0xB2, {
+    lss_op(REG_SS_INDEX);
 });
 
 opm(0xB3, {
@@ -2050,11 +2070,11 @@ opm(0xB3, {
 });
 
 // lfs, lgs
-opm(0xB4, { 
-    lss_op(reg_fs);
+opm(0xB4, {
+    lss_op(REG_FS_INDEX);
 });
 opm(0xB5, {
-    lss_op(reg_gs);
+    lss_op(REG_GS_INDEX);
 });
 
 opm2(0xB6, {
@@ -2176,27 +2196,27 @@ unimplemented_sse(0xC6);
 opm(0xC7, {
     // cmpxchg8b
     var addr = modrm_resolve(modrm_byte);
-    
+
     var m64_low = safe_read32(addr);
     var m64_high = safe_read32(addr + 4);
 
-    if(reg32[reg_eax] === m64_low &&
-            reg32[reg_edx] === m64_high)
+    if(reg32[REG_EAX_INDEX] === m64_low &&
+            reg32[REG_EDX_INDEX] === m64_high)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
 
-        safe_write32(addr, reg32[reg_ebx]);
-        safe_write32(addr + 4, reg32[reg_ecx]);
+        safe_write32(addr, reg32[REG_EBX_INDEX]);
+        safe_write32(addr + 4, reg32[REG_ECX_INDEX]);
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
 
-        reg32[reg_eax] = m64_low;
-        reg32[reg_edx] = m64_high;
+        reg32[REG_EAX_INDEX] = m64_low;
+        reg32[REG_EDX_INDEX] = m64_high;
     }
 
-    flags_changed &= ~flag_zero;
+    flags_changed &= ~FLAG_ZERO;
 });
 
 #define group0FC8(n, r16, r32) op(0xC8 | n, { bswap(r32); });

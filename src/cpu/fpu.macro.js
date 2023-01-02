@@ -4,7 +4,7 @@
 var FPU_LOG_OP = true;
 
 
-/** 
+/**
  * this behaves as if no x87 fpu existed
  * @constructor
  */
@@ -127,7 +127,7 @@ function NoFPU(io)
             // fnstsw
             // no fpu -> write nonzero
             dbg_log("Unimplemented DF", LOG_FPU);
-            reg16[reg_ax] = 1;
+            reg16[REG_AX_INDEX] = 1;
         }
         else
         {
@@ -153,7 +153,7 @@ function FPU(io)
     // - QNaN, unordered comparison
     // - Exceptions
 
-    var 
+    var
         /** @const */
         C0 = 0x100,
         /** @const */
@@ -167,7 +167,7 @@ function FPU(io)
         /** @const */
         STACK_TOP = 0x3800;
 
-    var 
+    var
         // precision, round & infinity control
         /** @const */
         PC = 3 << 8,
@@ -185,7 +185,7 @@ function FPU(io)
         EX_D = 1 << 1,
         EX_I = 1 << 0;
 
-    var 
+    var
         // Why no Float80Array :-(
         st = new Float64Array(8),
         st8 = new Uint8Array(st.buffer),
@@ -277,8 +277,8 @@ function FPU(io)
     {
         var x = st[stack_ptr];
 
-        flags_changed &= ~(1 | flag_parity | flag_zero);
-        flags &= ~(1 | flag_parity | flag_zero);
+        flags_changed &= ~(1 | FLAG_PARITY | FLAG_ZERO);
+        flags &= ~(1 | FLAG_PARITY | FLAG_ZERO);
 
         if(x > y)
         {
@@ -289,11 +289,11 @@ function FPU(io)
         }
         else if(x === y)
         {
-            flags |= flag_zero;
+            flags |= FLAG_ZERO;
         }
         else
         {
-            flags |= 1 | flag_parity | flag_zero;
+            flags |= 1 | FLAG_PARITY | FLAG_ZERO;
         }
     }
 
@@ -448,7 +448,7 @@ function FPU(io)
 
             safe_status_word(safe_read16(addr + 4));
             safe_tag_word(safe_read16(addr + 8));
-            
+
             fpu_ip = safe_read32(addr + 12);
             fpu_ip_selector = safe_read16(addr + 16);
             fpu_opcode = safe_read16(addr + 18);
@@ -514,7 +514,7 @@ function FPU(io)
         {
             return Math.floor(f);
         }
-        else 
+        else
         {
             return Math.ceil(f);
         }
@@ -597,7 +597,7 @@ function FPU(io)
         var exponent = safe_read16(addr + 8),
             sign,
 
-            low = safe_read32(addr), 
+            low = safe_read32(addr),
             high = safe_read32(addr + 4);
 
         sign = exponent >> 15;
@@ -630,7 +630,7 @@ function FPU(io)
 
         // Note: some bits might be lost at this point
         var mantissa = low + 0x100000000 * high;
-        
+
         if(sign)
         {
             mantissa = -mantissa;
@@ -743,7 +743,7 @@ function FPU(io)
         }
         else
         {
-            dbg_log(h(op, 2) + " /" + (imm8 >> 3 & 7) + 
+            dbg_log(h(op, 2) + " /" + (imm8 >> 3 & 7) +
                     "     @" + h(instruction_pointer, 8) + " sp=" + stack_ptr + " st=" + h(stack_empty, 2), LOG_FPU);
         }
     }
@@ -801,7 +801,7 @@ function FPU(io)
                 st[stack_ptr] = sti / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -851,7 +851,7 @@ function FPU(io)
                 st[stack_ptr] = m32 / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -967,7 +967,7 @@ function FPU(io)
                 }
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1006,7 +1006,7 @@ function FPU(io)
                 safe_write16(addr, control_word);
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1066,7 +1066,7 @@ function FPU(io)
                 }
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1116,7 +1116,7 @@ function FPU(io)
                 st[stack_ptr] = m32 / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1184,7 +1184,7 @@ function FPU(io)
                 fcomi(get_sti(low));
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1211,7 +1211,7 @@ function FPU(io)
                     safe_write32(addr, 0x80000000);
                 }
                 else
-                {   
+                {
                     // TODO: Invalid operation
                     safe_write32(addr, integer_round(st0));
                 }
@@ -1225,7 +1225,7 @@ function FPU(io)
                     safe_write32(addr, 0x80000000);
                 }
                 else
-                {   
+                {
                     safe_write32(addr, integer_round(st0));
                 }
                 pop();
@@ -1240,7 +1240,7 @@ function FPU(io)
                 pop();
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1291,7 +1291,7 @@ function FPU(io)
                 st[low_ptr] = sti / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1342,7 +1342,7 @@ function FPU(io)
                 st[stack_ptr] = m64 / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1370,7 +1370,7 @@ function FPU(io)
                 {
                     pop();
                 }
-                else 
+                else
                 {
                     st[stack_ptr + low & 7] = get_st0();
                     pop();
@@ -1385,7 +1385,7 @@ function FPU(io)
                 pop();
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1424,7 +1424,7 @@ function FPU(io)
                 safe_write16(addr, load_status_word());
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1464,7 +1464,7 @@ function FPU(io)
                 else
                 {
                     // not a valid encoding
-                    dbg_log(mod); 
+                    dbg_log(mod);
                     fpu_unimpl();
                 }
                 break;
@@ -1485,7 +1485,7 @@ function FPU(io)
                 st[low_ptr] = sti / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
 
@@ -1537,7 +1537,7 @@ function FPU(io)
                 st[stack_ptr] = m16 / st0;
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1555,7 +1555,7 @@ function FPU(io)
                 if(imm8 === 0xE0)
                 {
                     // fnstsw
-                    reg16[reg_ax] = load_status_word();
+                    reg16[REG_AX_INDEX] = load_status_word();
                 }
                 else
                 {
@@ -1569,7 +1569,7 @@ function FPU(io)
                 pop();
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };
@@ -1596,7 +1596,7 @@ function FPU(io)
                     safe_write16(addr, 0x8000);
                 }
                 else
-                {   
+                {
                     safe_write16(addr, integer_round(st0));
                 }
                 break;
@@ -1609,7 +1609,7 @@ function FPU(io)
                     safe_write16(addr, 0x8000);
                 }
                 else
-                {   
+                {
                     safe_write16(addr, integer_round(st0));
                 }
                 pop();
@@ -1649,7 +1649,7 @@ function FPU(io)
                 safe_write32(addr + 4, st0);
                 break;
             default:
-                dbg_log(mod); 
+                dbg_log(mod);
                 fpu_unimpl();
         }
     };

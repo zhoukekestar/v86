@@ -1,6 +1,6 @@
 "use strict";
 
-/** 
+/**
  * Programmable Interrupt Controller
  * http://stanislavs.org/helppc/8259.html
  *
@@ -9,10 +9,10 @@
  */
 function PIC(dev, call_interrupt_vector, handle_irqs, master)
 {
-    var 
+    var
         io = dev.io,
 
-        /** 
+        /**
          * all irqs off
          * @type {number}
          */
@@ -165,7 +165,7 @@ function PIC(dev, call_interrupt_vector, handle_irqs, master)
         else if(data_byte & 8) // xxx01xxx
         {
             // ocw3
-            dbg_log("ocw3: " + h(data_byte), LOG_PIC);
+            // dbg_log("ocw3: " + h(data_byte), LOG_PIC);
             read_irr = data_byte & 1;
         }
         else // xxx00xxx

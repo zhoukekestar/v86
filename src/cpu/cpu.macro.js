@@ -15,7 +15,7 @@ function v86()
 
 var cpu = this;
 
-this.run = function() 
+this.run = function()
 {
     if(!running)
     {
@@ -39,7 +39,7 @@ var
     segment_infos,
 
     /*
-     * Translation Lookaside Buffer 
+     * Translation Lookaside Buffer
      */
     tlb_user_read,
     tlb_user_write,
@@ -61,13 +61,13 @@ var
      */
     tlb_info_global,
 
-    /** 
+    /**
      * Wheter or not in protected mode
-     * @type {boolean} 
+     * @type {boolean}
      */
     protected_mode,
 
-    /** 
+    /**
      * interrupt descriptor table
      * @type {number}
      */
@@ -75,7 +75,7 @@ var
     /** @type {number} */
     idtr_offset,
 
-    /** 
+    /**
      * global descriptor table register
      * @type {number}
      */
@@ -83,7 +83,7 @@ var
     /** @type {number} */
     gdtr_offset,
 
-    /** 
+    /**
      * local desciptor table
      * @type {number}
      */
@@ -92,8 +92,8 @@ var
     ldtr_offset,
 
     /**
-     * task register 
-     * @type {number} 
+     * task register
+     * @type {number}
      */
     tsr_size,
     /** @type {number} */
@@ -104,6 +104,7 @@ var
      */
     page_fault,
 
+    // 控制寄存器，control register
     /** @type {number} */
     cr0,
     /** @type {number} */
@@ -117,6 +118,7 @@ var
     /** @type {number} */
     cpl,
 
+    // 标记是否开启分页模式
     // paging enabled
     /** @type {boolean} */
     paging,
@@ -133,7 +135,7 @@ var
     /** @type {boolean} */
     stack_size_32,
 
-    /** 
+    /**
      * Cycles since last cpu reset, used by rdtsc instruction
      * @type {number}
      */
@@ -142,7 +144,7 @@ var
     /** @type {number} */
     previous_ip,
 
-    /** 
+    /**
      * wheter or not in step mode
      * used for debugging
      * @type {boolean}
@@ -161,14 +163,14 @@ var
     /** @type {PS2} */
     ps2,
 
-    /** 
+    /**
      * Programmable interval timer
      * @type {PIT}
      */
     timer,
 
 
-    /** 
+    /**
      * Real Time Clock
      * @type {RTC}
      */
@@ -279,16 +281,16 @@ var
     /** @type {number} */
     flags,
 
-    /** 
+    /**
      * bitmap of flags which are not updated in the flags variable
      * changed by arithmetic instructions, so only relevant to arithmetic flags
      * @type {number}
      */
     flags_changed,
 
-    /** 
+    /**
      * the last 2 operators and the result and size of the last arithmetic operation
-     * @type {number} 
+     * @type {number}
      */
     last_op1,
     /** @type {number} */
@@ -307,7 +309,7 @@ var
 
     sreg,
 
-    
+
     // sp or esp, depending on stack size attribute
     stack_reg,
     reg_vsp,
@@ -319,6 +321,10 @@ var
     reg_vsi,
     reg_vdi,
 
+
+    // 用于读取内存字段，因为有分页和无分页的区别
+    // 所以需要定义一个全局变量，用于切换读取方式，实现方式：pe_functions 或 npe_functions;
+    //
     // functions that are set depending on whether paging is enabled or not
     read_imm8,
     read_imm8s,
@@ -333,13 +339,14 @@ var
     get_esp_read,
     get_esp_write,
 
-
+    // 用于映射是使用 16 位的指令集，还是 32 位指令集
     table,
     table0F,
 
+    // 用于切换地址长度为 16 位还是 32 位
     modrm_resolve,
 
-
+    // 当前实例配置，比如 cdrom 和 软盘 分别是哪些
     current_settings
 ;
 
@@ -368,7 +375,7 @@ function cpu_run()
             page_fault = false;
             repeat_string_prefix = false;
             segment_prefix = -1;
-            
+
             address_size_32 = is_32;
             update_address_size();
             operand_size_32 = is_32;
@@ -434,7 +441,7 @@ function cpu_init(settings)
 
     current_settings = settings;
 
-    cpu.memory = memory = new Memory(new ArrayBuffer(memory_size), memory_size); 
+    cpu.memory = memory = new Memory(new ArrayBuffer(MEMORY_SIZE), MEMORY_SIZE);
 
     segment_is_null = new Uint8Array(8);
     segment_limits = new Uint32Array(8);
@@ -491,8 +498,8 @@ function cpu_init(settings)
     update_address_size();
 
     stack_reg = reg16;
-    reg_vsp = reg_sp;
-    reg_vbp = reg_bp;
+    reg_vsp = REG_SP_INDEX;
+    reg_vbp = REG_BP_INDEX;
 
     cpu_timestamp_counter = 0;
     previous_ip = 0;
@@ -509,7 +516,7 @@ function cpu_init(settings)
     segment_prefix = -1;
     repeat_string_prefix = false;
     last_result = 0;
-    flags = flags_default;
+    flags = FLAG_DEFAULT;
     flags_changed = 0;
     last_op1 = 0;
     last_op2 = 0;
@@ -543,8 +550,8 @@ function cpu_init(settings)
         instruction_pointer = 0xFFFF0;
 
         // ss and sp inital value
-        switch_seg(reg_ss, 0x30);
-        reg16[reg_sp] = 0x100;
+        switch_seg(REG_SS_INDEX, 0x30);
+        reg16[REG_SP_INDEX] = 0x100;
     }
     else if(settings.linux)
     {
@@ -556,20 +563,20 @@ function cpu_init(settings)
         if(settings.linux.root)
         {
             memory.write_blob(new Uint8Array(settings.linux.root), 0x00400000);
-            reg32[reg_ebx] = settings.linux.root.byteLength;
+            reg32[REG_EBX_INDEX] = settings.linux.root.byteLength;
         }
 
         memory.write_string(settings.linux.cmdline, 0xF800);
 
-        reg32[reg_eax] = memory_size;
-        reg32[reg_ecx] = 0xF800;
+        reg32[REG_EAX_INDEX] = MEMORY_SIZE;
+        reg32[REG_ECX_INDEX] = 0xF800;
 
-        switch_seg(reg_cs, 0);
-        switch_seg(reg_ss, 0);
-        switch_seg(reg_ds, 0);
-        switch_seg(reg_es, 0);
-        switch_seg(reg_gs, 0);
-        switch_seg(reg_fs, 0);
+        switch_seg(REG_CS_INDEX, 0);
+        switch_seg(REG_SS_INDEX, 0);
+        switch_seg(REG_DS_INDEX, 0);
+        switch_seg(REG_ES_INDEX, 0);
+        switch_seg(REG_GS_INDEX, 0);
+        switch_seg(REG_FS_INDEX, 0);
 
         is_32 = true;
         address_size_32 = true;
@@ -581,15 +588,15 @@ function cpu_init(settings)
         update_address_size();
 
         regv = reg32;
-        reg_vsp = reg_esp;
-        reg_vbp = reg_ebp;
+        reg_vsp = REG_ES_INDEXP_INDEX;
+        reg_vbp = REG_EBP_INDEX;
 
         cr0 = 1;
     }
     else
     {
-        switch_seg(reg_ss, 0x30);
-        reg16[reg_sp] = 0x100;
+        switch_seg(REG_SS_INDEX, 0x30);
+        reg16[REG_SP_INDEX] = 0x100;
 
         instruction_pointer = 0;
     }
@@ -600,7 +607,7 @@ function cpu_init(settings)
     if(settings.load_devices)
     {
         var devapi = {
-            memory: memory,   
+            memory: memory,
             reboot: cpu_reboot_internal,
         };
 
@@ -608,11 +615,11 @@ function cpu_init(settings)
         devapi.pic = pic = new PIC(devapi, call_interrupt_vector, handle_irqs);
         devapi.pci = pci = new PCI(devapi);
         devapi.dma = dma = new DMA(devapi);
- 
+
 
         cpu.dev.vga = vga = new VGAScreen(devapi, settings.screen_adapter)
         cpu.dev.ps2 = ps2 = new PS2(devapi, settings.keyboard_adapter, settings.mouse_adapter);
-        
+
         //fpu = new NoFPU();
         fpu = new FPU(devapi);
 
@@ -640,7 +647,7 @@ function cpu_init(settings)
 
     if(DEBUG)
     {
-        // used for debugging 
+        // used for debugging
         ops = new CircularQueue(30000);
 
         if(typeof window !== "undefined")
@@ -674,11 +681,11 @@ function cpu_init(settings)
 
 function do_run()
 {
-    var 
-        /** 
+    var
+        /**
          * @type {number}
          */
-        now, 
+        now,
         start = Date.now();
 
     vga.timer(start);
@@ -716,8 +723,8 @@ function do_run()
     next_tick();
 }
 
-// do_run must not be inlined into cpu_run, because then more code 
-// is in the deoptimized try-catch. 
+// do_run must not be inlined into cpu_run, because then more code
+// is in the deoptimized try-catch.
 // This trick is a bit ugly, but it works without further complication.
 if(typeof window !== "undefined")
 {
@@ -726,6 +733,8 @@ if(typeof window !== "undefined")
 
 
 /**
+ * 执行一条 CPU 指令，这个方法是 CPU 执行的主循环
+ *
  * execute a single instruction cycle on the cpu
  * this includes reading all prefixes and the whole instruction
  */
@@ -739,9 +748,9 @@ function cycle()
     table[opcode]();
 
     // TODO
-    //if(flags & flag_trap)
+    //if(flags & FLAG_TRAP)
     //{
-    //    
+    //
     //}
 }
 
@@ -782,7 +791,7 @@ function paging_changed()
     read_imm8s = table.read_imm8s;
     read_imm16 = table.read_imm16;
     read_imm32s = table.read_imm32s;
-    
+
     safe_read8 = table.safe_read8;
     safe_read8s = table.safe_read8s;
     safe_read16 = table.safe_read16;
@@ -855,7 +864,7 @@ var npe_functions = {
 };
 
 // functions that are used when paging is enabled
-var pe_functions = 
+var pe_functions =
 {
     get_esp_read: get_esp_pe_read,
     get_esp_write: get_esp_pe_write,
@@ -868,7 +877,7 @@ var pe_functions =
             last_virt_eip = instruction_pointer & ~0xFFF;
         }
 
-        // memory.read8 inlined under the assumption that code never runs in 
+        // memory.read8 inlined under the assumption that code never runs in
         // memory-mapped io
         return memory.mem8[eip_phys ^ instruction_pointer++];
     },
@@ -944,20 +953,20 @@ function virt_boundary_read32s(low, high)
         if(low & 2)
         {
             // 0xFFF
-            result |= memory.read8(high - 2) << 8 | 
+            result |= memory.read8(high - 2) << 8 |
                         memory.read8(high - 1) << 16;
         }
         else
         {
             // 0xFFD
-            result |= memory.read8(low + 1) << 8 | 
+            result |= memory.read8(low + 1) << 8 |
                         memory.read8(low + 2) << 16;
         }
     }
     else
     {
         // 0xFFE
-        result |= memory.read8(low + 1) << 8 | 
+        result |= memory.read8(low + 1) << 8 |
                     memory.read8(high - 1) << 16;
     }
 
@@ -1080,17 +1089,17 @@ function read_moffs()
 {
     if(address_size_32)
     {
-        return get_seg_prefix(reg_ds) + read_imm32s();
+        return get_seg_prefix(REG_DS_INDEX) + read_imm32s();
     }
     else
     {
-        return get_seg_prefix(reg_ds) + read_imm16();
+        return get_seg_prefix(REG_DS_INDEX) + read_imm16();
     }
 }
 
 function get_flags()
 {
-    return (flags & ~flags_all) | getcf() | getpf() | getaf() | getzf() | getsf() | getof();
+    return (flags & ~FLAG_ALL_ARITHMETIC) | getcf() | getpf() | getaf() | getzf() | getsf() | getof();
 }
 
 function load_flags()
@@ -1104,35 +1113,35 @@ function get_esp_npe(mod)
 {
     if(stack_size_32)
     {
-        return get_seg(reg_ss) + stack_reg[reg_vsp] + mod;
+        return get_seg(REG_SS_INDEX) + stack_reg[reg_vsp] + mod;
     }
     else
     {
-        return get_seg(reg_ss) + (stack_reg[reg_vsp] + mod & 0xFFFF);
+        return get_seg(REG_SS_INDEX) + (stack_reg[reg_vsp] + mod & 0xFFFF);
     }
 }
 
 function get_esp_pe_read(mod)
 {
-    // UNSAFE: stack_reg[reg_vsp]+mod needs to be masked in 16 bit mode 
+    // UNSAFE: stack_reg[reg_vsp]+mod needs to be masked in 16 bit mode
     //   (only if paging is enabled and in 16 bit mode)
 
-    return translate_address_read(get_seg(reg_ss) + stack_reg[reg_vsp] + mod);
+    return translate_address_read(get_seg(REG_SS_INDEX) + stack_reg[reg_vsp] + mod);
 }
 
 function get_esp_pe_write(mod)
 {
-    return translate_address_write(get_seg(reg_ss) + stack_reg[reg_vsp] + mod);
+    return translate_address_write(get_seg(REG_SS_INDEX) + stack_reg[reg_vsp] + mod);
 }
 
 
 /*
- * returns the "real" instruction pointer, 
+ * returns the "real" instruction pointer,
  * without segment offset
  */
 function get_real_ip()
 {
-    return instruction_pointer - get_seg(reg_cs);
+    return instruction_pointer - get_seg(REG_CS_INDEX);
 }
 
 function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
@@ -1154,9 +1163,9 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
 
     //if(interrupt_nr == 0x10)
     //{
-    //    dbg_log("int10 ax=" + h(reg16[reg_ax], 4) + " '" + String.fromCharCode(reg8[reg_al]) + "'"); 
+    //    dbg_log("int10 ax=" + h(reg16[REG_AX_INDEX], 4) + " '" + String.fromCharCode(reg8[REG_AL_INDEX]) + "'");
     //    dump_regs_short();
-    //    if(reg8[reg_ah] == 0xe) vga.tt_write(reg8[reg_al]);
+    //    if(reg8[REG_AH_INDEX] == 0xe) vga.tt_write(reg8[REG_AL_INDEX]);
     //}
 
     //dbg_log("int " + h(interrupt_nr));
@@ -1222,7 +1231,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         }
 
         type &= 31;
-        
+
         if(type === 14)
         {
             is_trap = false;
@@ -1275,11 +1284,11 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
             throw unimpl("#NP handler");
         }
 
-        if(flags & flag_vm)
+        if(flags & FLAG_VIRTUAL_8086_MODE)
         {
             throw unimpl("VM flag");
         }
-            
+
 
         if(!info.dc_bit && info.dpl < cpl)
         {
@@ -1293,7 +1302,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
             }
 
             tss_stack_addr += tsr_offset;
-            
+
             if(paging)
             {
                 tss_stack_addr = translate_address_system_read(tss_stack_addr);
@@ -1320,14 +1329,14 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
                 throw unimpl("#TS handler");
             }
 
-            var old_esp = reg32s[reg_esp],
-                old_ss = sreg[reg_ss];
+            var old_esp = reg32s[REG_ES_INDEXP_INDEX],
+                old_ss = sreg[REG_SS_INDEX];
 
-            reg32[reg_esp] = new_esp;
-            sreg[reg_ss] = new_ss;
+            reg32[REG_ES_INDEXP_INDEX] = new_esp;
+            sreg[REG_SS_INDEX] = new_ss;
 
             cpl = info.dpl;
-            //dbg_log("int" + h(interrupt_nr, 2) +" from=" + h(instruction_pointer, 8) 
+            //dbg_log("int" + h(interrupt_nr, 2) +" from=" + h(instruction_pointer, 8)
             //        + " cpl=" + cpl + " old ss:esp=" + h(old_ss,4) + ":" + h(old_esp,8), LOG_CPU);
 
             cpl_changed();
@@ -1346,9 +1355,9 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         load_flags();
         push32(flags);
 
-        push32(sreg[reg_cs]);
+        push32(sreg[REG_CS_INDEX]);
         push32(get_real_ip());
-        //dbg_log("pushed eip to " + h(reg32[reg_esp], 8), LOG_CPU);
+        //dbg_log("pushed eip to " + h(reg32[REG_ES_INDEXP_INDEX], 8), LOG_CPU);
 
 
         if(error_code !== false)
@@ -1356,23 +1365,23 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
             dbg_assert(typeof error_code == "number");
             push32(error_code);
         }
-        
+
 
         // TODO
-        sreg[reg_cs] = selector;
-        //switch_seg(reg_cs);
+        sreg[REG_CS_INDEX] = selector;
+        //switch_seg(REG_CS_INDEX);
 
-        //dbg_log("current esp: " + h(reg32[reg_esp]), LOG_CPU);
+        //dbg_log("current esp: " + h(reg32[REG_ES_INDEXP_INDEX]), LOG_CPU);
         //dbg_log("call int " + h(interrupt_nr) + " from " + h(instruction_pointer) + " to " + h(base) + " with error_code=" + error_code, LOG_CPU);
 
-        instruction_pointer = get_seg(reg_cs) + base | 0;
-        
-        //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & flag_interrupt));
-    
+        instruction_pointer = get_seg(REG_CS_INDEX) + base | 0;
+
+        //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & FLAG_INTERRUPT));
+
         if(!is_trap)
         {
             // clear int flag for interrupt gates
-            flags &= ~flag_interrupt;
+            flags &= ~FLAG_INTERRUPT;
         }
         else
         {
@@ -1382,20 +1391,20 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
     else
     {
         // call 4 byte cs:ip interrupt vector from ivt at memory 0
-        
+
         //logop(instruction_pointer, "callu " + h(interrupt_nr) + "." + h(memory.read8(ah)));
         //dbg_log("callu " + h(interrupt_nr) + "." + h(memory.read8(ah)) + " at " + h(instruction_pointer, 8), LOG_CPU, LOG_CPU);
 
         // push flags, cs:ip
         load_flags();
         push16(flags);
-        push16(sreg[reg_cs]);
+        push16(sreg[REG_CS_INDEX]);
         push16(get_real_ip());
 
-        flags = flags & ~flag_interrupt;
+        flags = flags & ~FLAG_INTERRUPT;
 
-        switch_seg(reg_cs, memory.read16((interrupt_nr << 2) + 2));
-        instruction_pointer = get_seg(reg_cs) + memory.read16(interrupt_nr << 2) | 0;
+        switch_seg(REG_CS_INDEX, memory.read16((interrupt_nr << 2) + 2));
+        instruction_pointer = get_seg(REG_CS_INDEX) + memory.read16(interrupt_nr << 2) | 0;
     }
 }
 
@@ -1498,7 +1507,7 @@ function get_seg(segment /*, offset*/)
 {
     dbg_assert(segment >= 0 && segment < 8);
     dbg_assert(protected_mode || (sreg[segment] << 4) == segment_offsets[segment]);
-    
+
     if(protected_mode)
     {
         if(segment_is_null[segment])
@@ -1511,7 +1520,7 @@ function get_seg(segment /*, offset*/)
             }
         }
 
-        // TODO: 
+        // TODO:
         // - validate segment limits
         // - validate if segment is writable
         // - set accessed bit
@@ -1522,16 +1531,16 @@ function get_seg(segment /*, offset*/)
 
 function arpl(seg, r16)
 {
-    flags_changed &= ~flag_zero;
+    flags_changed &= ~FLAG_ZERO;
 
     if((seg & 3) < (reg16[r16] & 3))
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return seg & ~3 | reg16[r16] & 3;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         return seg;
     }
 }
@@ -1541,7 +1550,7 @@ function handle_irqs()
 {
     if(pic)
     {
-        if((flags & flag_interrupt) && !page_fault)
+        if((flags & FLAG_INTERRUPT) && !page_fault)
         {
             pic.handle_irqs();
         }
@@ -1609,7 +1618,7 @@ function in16(port_addr)
 {
     if(privileges_for_io())
     {
-        return io.port_read(port_addr) | 
+        return io.port_read(port_addr) |
                 io.port_read(port_addr + 1) << 8;
     }
     else
@@ -1623,7 +1632,7 @@ function in32(port_addr)
     if(privileges_for_io())
     {
         return io.port_read(port_addr) |
-                io.port_read(port_addr + 1) << 8 | 
+                io.port_read(port_addr + 1) << 8 |
                 io.port_read(port_addr + 2) << 16 |
                 io.port_read(port_addr + 3) << 24;
     }
@@ -1651,44 +1660,44 @@ function cpuid()
 {
     // cpuid
     // TODO: Fill in with less bogus values
-    
+
     // http://lxr.linux.no/linux+%2a/arch/x86/include/asm/cpufeature.h
-    
-    var id = reg32s[reg_eax];
-    
+
+    var id = reg32s[REG_EAX_INDEX];
+
     if((id & 0x7FFFFFFF) === 0)
     {
-        reg32[reg_eax] = 2;
+        reg32[REG_EAX_INDEX] = 2;
 
         if(id === 0)
         {
-            reg32[reg_ebx] = 0x756E6547; // Genu
-            reg32[reg_edx] = 0x49656E69; // ineI
-            reg32[reg_ecx] = 0x6C65746E; // ntel
+            reg32[REG_EBX_INDEX] = 0x756E6547; // Genu
+            reg32[REG_EDX_INDEX] = 0x49656E69; // ineI
+            reg32[REG_ECX_INDEX] = 0x6C65746E; // ntel
         }
     }
     else if(id === 1)
     {
         // pentium
-        reg32[reg_eax] = 0x513;
-        reg32[reg_ebx] = 0;
-        reg32[reg_ecx] = 0;
-        reg32[reg_edx] = fpu.is_fpu | 1 << 3 | 1 << 4 | 1 << 8| 1 << 13 | 1 << 15;
+        reg32[REG_EAX_INDEX] = 0x513;
+        reg32[REG_EBX_INDEX] = 0;
+        reg32[REG_ECX_INDEX] = 0;
+        reg32[REG_EDX_INDEX] = fpu.is_fpu | 1 << 3 | 1 << 4 | 1 << 8| 1 << 13 | 1 << 15;
     }
     else if(id === 2)
     {
         // Taken from http://siyobik.info.gf/main/reference/instruction/CPUID
-        reg32[reg_eax] = 0x665B5001;
-        reg32[reg_ebx] = 0;
-        reg32[reg_ecx] = 0;
-        reg32[reg_edx] = 0x007A7000;
+        reg32[REG_EAX_INDEX] = 0x665B5001;
+        reg32[REG_EBX_INDEX] = 0;
+        reg32[REG_ECX_INDEX] = 0;
+        reg32[REG_EDX_INDEX] = 0x007A7000;
     }
     else if(id === (0x80860000 | 0))
     {
-        reg32[reg_eax] = 0;
-        reg32[reg_ebx] = 0;
-        reg32[reg_ecx] = 0;
-        reg32[reg_edx] = 0;
+        reg32[REG_EAX_INDEX] = 0;
+        reg32[REG_EBX_INDEX] = 0;
+        reg32[REG_ECX_INDEX] = 0;
+        reg32[REG_EDX_INDEX] = 0;
     }
     else if((id & 0xF0000000) === ~~0x40000000)
     {
@@ -1714,12 +1723,12 @@ function update_flags(new_flags)
     {
         // cpl != 0 and iopl <= cpl
         // can update interrupt flag but not iopl
-        flags = (new_flags & ~flag_iopl) | (flags & flag_iopl);
+        flags = (new_flags & ~FLAG_IO_PRIVILEGE_LEVEL) | (flags & FLAG_IO_PRIVILEGE_LEVEL);
     }
     else
     {
         // cannot update interrupt flag or iopl
-        flags = (new_flags & ~flag_iopl & ~flag_interrupt) | (flags & (flag_iopl | flag_interrupt));
+        flags = (new_flags & ~FLAG_IO_PRIVILEGE_LEVEL & ~FLAG_INTERRUPT) | (flags & (FLAG_IO_PRIVILEGE_LEVEL | FLAG_INTERRUPT));
     }
 
     flags_changed = 0;
@@ -1744,21 +1753,23 @@ function update_address_size()
 {
     if(address_size_32)
     {
+        // 用于切换地址长度为 16 位还是 32 位
         modrm_resolve = modrm_resolve32;
 
         regv = reg32;
-        reg_vcx = reg_ecx;
-        reg_vsi = reg_esi;
-        reg_vdi = reg_edi;
+        reg_vcx = REG_ECX_INDEX;
+        reg_vsi = REG_ES_INDEXI_INDEX;
+        reg_vdi = REG_EDI_INDEX;
     }
     else
     {
+        // 用于切换地址长度为 16 位还是 32 位
         modrm_resolve = modrm_resolve16;
 
         regv = reg16;
-        reg_vcx = reg_cx;
-        reg_vsi = reg_si;
-        reg_vdi = reg_di;
+        reg_vcx = REG_CX_INDEX;
+        reg_vsi = REG_SI_INDEX;
+        reg_vdi = REG_DI_INDEX;
     }
 }
 
@@ -1811,7 +1822,7 @@ function lookup_segment_selector(selector)
         table_offset = translate_address_system_read(table_offset);
     }
 
-    info.base = memory.read16(table_offset + 2) | memory.read8(table_offset + 4) << 16 | 
+    info.base = memory.read16(table_offset + 2) | memory.read8(table_offset + 4) << 16 |
             memory.read8(table_offset + 7) << 24,
     info.access = memory.read8(table_offset + 5),
     info.flags = memory.read8(table_offset + 6) >> 4,
@@ -1856,8 +1867,8 @@ function switch_seg(reg, selector)
 {
     dbg_assert(reg >= 0 && reg <= 5);
     dbg_assert(typeof selector === "number" && selector < 0x10000 && selector >= 0);
-    
-    if(reg === reg_cs)
+
+    if(reg === REG_CS_INDEX)
     {
         protected_mode = (cr0 & 1) === 1;
     }
@@ -1873,14 +1884,14 @@ function switch_seg(reg, selector)
 
     var info = lookup_segment_selector(selector);
 
-    if(reg === reg_ss)
+    if(reg === REG_SS_INDEX)
     {
         if(info.is_null)
         {
             trigger_gp(0);
             return false;
         }
-        if(!info.is_valid || 
+        if(!info.is_valid ||
                 info.is_system ||
                 info.rpl !== cpl ||
                 !info.is_writable ||
@@ -1900,17 +1911,17 @@ function switch_seg(reg, selector)
         if(info.size)
         {
             stack_reg = reg32s;
-            reg_vsp = reg_esp;
-            reg_vbp = reg_ebp;
+            reg_vsp = REG_ES_INDEXP_INDEX;
+            reg_vbp = REG_EBP_INDEX;
         }
         else
         {
             stack_reg = reg16;
-            reg_vsp = reg_sp;
-            reg_vbp = reg_bp;
+            reg_vsp = REG_SP_INDEX;
+            reg_vbp = REG_BP_INDEX;
         }
     }
-    else if(reg === reg_cs)
+    else if(reg === REG_CS_INDEX)
     {
         if(!info.is_executable)
         {
@@ -1972,8 +1983,8 @@ function switch_seg(reg, selector)
             segment_is_null[reg] = 1;
             return true;
         }
-        if(!info.is_valid || 
-                info.is_system || 
+        if(!info.is_valid ||
+                info.is_system ||
                 !info.is_readable ||
                 ((!info.is_executable || !info.dc_bit) &&
                  info.rpl > info.dpl &&
@@ -1994,7 +2005,7 @@ function switch_seg(reg, selector)
     segment_is_null[reg] = 0;
     segment_limits[reg] = info.real_limit;
     segment_infos[reg] = 0; // TODO
-    
+
     segment_offsets[reg] = info.base;
 
     sreg[reg] = selector;
@@ -2129,7 +2140,7 @@ function translate_address_disabled(addr)
 function translate_address_user_write(addr)
 {
     var base = addr >>> 12;
-    
+
     if(tlb_info[base] & TLB_USER_WRITE)
     {
         return tlb_user_write[base] ^ addr;
@@ -2143,7 +2154,7 @@ function translate_address_user_write(addr)
 function translate_address_user_read(addr)
 {
     var base = addr >>> 12;
-    
+
     if(tlb_info[base] & TLB_USER_READ)
     {
         return tlb_user_read[base] ^ addr;
@@ -2157,7 +2168,7 @@ function translate_address_user_read(addr)
 function translate_address_system_write(addr)
 {
     var base = addr >>> 12;
-    
+
     if(tlb_info[base] & TLB_SYSTEM_WRITE)
     {
         return tlb_system_write[base] ^ addr;
@@ -2171,7 +2182,7 @@ function translate_address_system_write(addr)
 function translate_address_system_read(addr)
 {
     var base = addr >>> 12;
-    
+
     if(tlb_info[base] & TLB_SYSTEM_READ)
     {
         return tlb_system_read[base] ^ addr;
@@ -2183,7 +2194,7 @@ function translate_address_system_read(addr)
 }
 
 /**
- * @return {number} 
+ * @return {number}
  */
 function do_page_translation(addr, for_writing, user)
 {
@@ -2237,7 +2248,7 @@ function do_page_translation(addr, for_writing, user)
             dbg_assert(false);
         }
     }
-    
+
     if((page_dir_entry & 0x10) === 0)
     {
         cachable = false;
@@ -2292,7 +2303,7 @@ function do_page_translation(addr, for_writing, user)
                 dbg_assert(false);
             }
         }
-    
+
         if((page_table_entry & 0x10) === 0)
         {
             cachable = false;
@@ -2323,7 +2334,7 @@ function do_page_translation(addr, for_writing, user)
                 info |= TLB_USER_WRITE;
             }
         }
-        
+
         tlb_system_read[page] = cache_entry;
         info |= TLB_SYSTEM_READ;
 
@@ -2365,7 +2376,7 @@ function trigger_pagefault(write, user, present)
 }
 
 
-// it looks pointless to have these two here, but 
+// it looks pointless to have these two here, but
 // Closure Compiler is able to remove unused functions
 //#include "test_helpers.js"
 #include "debug.macro.js"

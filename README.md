@@ -4,10 +4,16 @@
 * this repo is fork from [copy/v86] and checkouted first commit
 * images is download from [copy/images]
 * you can start it with `npx serve . -p 80`
+* rebuild cpu.js `cd src/cpu && make`
 
 Test images
 * `qemu-system-i386 -fda images/windows101.img`
 
+# Example
+
+* [Opcode table and ModR/M table](https://www.scs.stanford.edu/05au-cs240c/lab/i386/appa.htm)
+* [instrction format & ModR/M format](https://www.scs.stanford.edu/05au-cs240c/lab/i386/s17_02.htm)
+* [ADD instruction](https://www.scs.stanford.edu/05au-cs240c/lab/i386/ADD.htm)
 
 
 # ORIGINAL

@@ -16,17 +16,17 @@ var modrm_table16 = Array(0xC0),
     modrm_table32 = Array(0xC0),
     sib_table = Array(0x100);
 
-#define ds get_seg_prefix(reg_ds)
-#define ss get_seg_prefix(reg_ss)
+#define ds get_seg_prefix(REG_DS_INDEX)
+#define ss get_seg_prefix(REG_SS_INDEX)
 
-#define eax reg32s[reg_eax]
-#define ecx reg32s[reg_ecx]
-#define edx reg32s[reg_edx]
-#define ebx reg32s[reg_ebx]
-#define esp reg32s[reg_esp]
-#define ebp reg32s[reg_ebp]
-#define esi reg32s[reg_esi]
-#define edi reg32s[reg_edi]
+#define eax reg32s[REG_EAX_INDEX]
+#define ecx reg32s[REG_ECX_INDEX]
+#define edx reg32s[REG_EDX_INDEX]
+#define ebx reg32s[REG_EBX_INDEX]
+#define esp reg32s[REG_ES_INDEXP_INDEX]
+#define ebp reg32s[REG_EBP_INDEX]
+#define esi reg32s[REG_ES_INDEXI_INDEX]
+#define edi reg32s[REG_EDI_INDEX]
 
 #define imm32 read_imm32s()
 #define imm16 read_imm16()
@@ -41,14 +41,14 @@ var modrm_table16 = Array(0xC0),
     modrm_table16[n] = function() { return offset | 0; };
 
 
-entry16(0, ds, reg16[reg_bx] + reg16[reg_si])
-entry16(1, ds, reg16[reg_bx] + reg16[reg_di])
-entry16(2, ss, reg16[reg_bp] + reg16[reg_si])
-entry16(3, ss, reg16[reg_bp] + reg16[reg_di])
-entry16(4, ds, reg16[reg_si])
-entry16(5, ds, reg16[reg_di])
-entry16(6, ss, reg16[reg_bp])
-entry16(7, ds, reg16[reg_bx])
+entry16(0, ds, reg16[REG_BX_INDEX] + reg16[REG_SI_INDEX])
+entry16(1, ds, reg16[REG_BX_INDEX] + reg16[REG_DI_INDEX])
+entry16(2, ss, reg16[REG_BP_INDEX] + reg16[REG_SI_INDEX])
+entry16(3, ss, reg16[REG_BP_INDEX] + reg16[REG_DI_INDEX])
+entry16(4, ds, reg16[REG_SI_INDEX])
+entry16(5, ds, reg16[REG_DI_INDEX])
+entry16(6, ss, reg16[REG_BP_INDEX])
+entry16(7, ds, reg16[REG_BX_INDEX])
 
 #define entry32(row, value)\
     entry32_(0x00 | row, (value))\
@@ -149,19 +149,19 @@ function getsib(mod)
     return sib_table[read_imm8()](mod);
 }
 
-#undef ds 
-#undef ss 
+#undef ds
+#undef ss
 
-#undef eax 
-#undef ecx 
-#undef edx 
-#undef ebx 
-#undef esp 
-#undef ebp 
-#undef esi 
-#undef edi 
+#undef eax
+#undef ecx
+#undef edx
+#undef ebx
+#undef esp
+#undef ebp
+#undef esi
+#undef edi
 
-#undef imm32 
+#undef imm32
 #undef imm16
 #undef imm8
 

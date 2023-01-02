@@ -10,9 +10,9 @@ function VGAScreen(dev, adapter)
         io = dev.io,
         memory = dev.memory,
 
-        /** 
+        /**
          * TODO: Make this configurable
-         * @const 
+         * @const
          */
         SVGA_MEMORY_SIZE = 128 * 64 * 1024,
 
@@ -24,7 +24,7 @@ function VGAScreen(dev, adapter)
 
         /** @const */
         MAX_BPP = 32,
-        
+
         /** @type {number} */
         cursor_address = 0,
 
@@ -39,13 +39,13 @@ function VGAScreen(dev, adapter)
 
         /**
          * Number of columns in text mode
-         * @type {number} 
+         * @type {number}
          */
         max_cols,
 
-        /** 
+        /**
          * Number of rows in text mode
-         * @type {number} 
+         * @type {number}
          */
         max_rows,
 
@@ -76,7 +76,7 @@ function VGAScreen(dev, adapter)
         /** @type {boolean} */
         do_complete_redraw = false,
 
-        /* 
+        /*
          * VGA palette containing 256 colors for video mode 13 etc.
          * Needs to be initialised by the BIOS
          */
@@ -97,7 +97,7 @@ function VGAScreen(dev, adapter)
         latch2 = 0,
         latch3 = 0,
 
-        
+
         svga_memory = new Uint8Array(SVGA_MEMORY_SIZE),
         svga_enabled = false,
 
@@ -190,7 +190,7 @@ function VGAScreen(dev, adapter)
         // not implemented
         dbg_assert((planar_rotate_reg & 7) === 0);
         dbg_assert(planar_mode < 3);
-        
+
         if(planar_mode === 0)
         {
             plane0_byte = plane1_byte = plane2_byte = plane3_byte = value;
@@ -306,7 +306,7 @@ function VGAScreen(dev, adapter)
             return;
         }
 
-        // Shift these, so that the bits for the color are in 
+        // Shift these, so that the bits for the color are in
         // the correct position in the while loop
         plane1_byte <<= 1;
         plane2_byte <<= 2;
@@ -318,7 +318,7 @@ function VGAScreen(dev, adapter)
 
         for(var i = 0; i < 8; i++)
         {
-            var color_index = 
+            var color_index =
                     plane0_byte >> i & 1 |
                     plane1_byte >> i & 2 |
                     plane2_byte >> i & 4 |
@@ -346,7 +346,7 @@ function VGAScreen(dev, adapter)
                 chr = vga_memory[addr];
                 color = vga_memory[addr | 1];
 
-                adapter.put_char(row, col, chr, 
+                adapter.put_char(row, col, chr,
                     vga256_palette[color >> 4 & 0xF], vga256_palette[color & 0xF]);
 
                 addr += 2;
@@ -370,7 +370,7 @@ function VGAScreen(dev, adapter)
             {
                 for(var i = 0; i < 8; i++)
                 {
-                    color = 
+                    color =
                         plane0[addr] >> i & 1 |
                         plane1[addr] >> i << 1 & 2 |
                         plane2[addr] >> i << 2 & 4 |
@@ -408,7 +408,7 @@ function VGAScreen(dev, adapter)
             color = vga_memory[addr | 1];
         }
 
-        adapter.put_char(row, col, chr, 
+        adapter.put_char(row, col, chr,
                 vga256_palette[color >> 4 & 0xF], vga256_palette[color & 0xF]);
 
         vga_memory[addr] = value;
@@ -495,7 +495,7 @@ function VGAScreen(dev, adapter)
                 {
                     graphical_linear_redraw();
                 }
-                else 
+                else
                 {
                     graphical_planar_redraw();
                 }
@@ -517,8 +517,8 @@ function VGAScreen(dev, adapter)
     };
 
     /**
-     * @param {number} cols_count 
-     * @param {number} rows_count 
+     * @param {number} cols_count
+     * @param {number} rows_count
      */
     this.set_size_text = function(cols_count, rows_count)
     {
@@ -784,7 +784,7 @@ function VGAScreen(dev, adapter)
     }
     io.register_read(0x3C0, port3C0_read);
 
-    
+
     var sequencer_index = -1;
 
     function port3C4_write(value)
@@ -794,11 +794,11 @@ function VGAScreen(dev, adapter)
     io.register_write(0x3C4, port3C4_write);
 
 
-    var 
+    var
         // bitmap of planes 0-3
         plane_write_bm = 0xF,
         sequencer_memory_mode = 0
-        ; 
+        ;
 
     function port3C5_write(value)
     {
@@ -880,7 +880,7 @@ function VGAScreen(dev, adapter)
 
     function switch_video_mode(mar)
     {
-        // Cheap way to figure this out, using the Miscellaneous Output Register 
+        // Cheap way to figure this out, using the Miscellaneous Output Register
         // See: http://wiki.osdev.org/VGA_Hardware#List_of_register_settings
 
         if(mar === 0x67)
