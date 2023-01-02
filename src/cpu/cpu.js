@@ -337,7 +337,7 @@ function cpu_init(settings)
         set_tick(cpu_run);
     }
     current_settings = settings;
-    cpu.memory = memory = new Memory(new ArrayBuffer(memory_size), memory_size);
+    cpu.memory = memory = new Memory(new ArrayBuffer(MEMORY_SIZE), MEMORY_SIZE);
     segment_is_null = new Uint8Array(8);
     segment_limits = new Uint32Array(8);
     segment_infos = new Uint32Array(8);
@@ -435,7 +435,7 @@ function cpu_init(settings)
             reg32[reg_ebx] = settings.linux.root.byteLength;
         }
         memory.write_string(settings.linux.cmdline, 0xF800);
-        reg32[reg_eax] = memory_size;
+        reg32[reg_eax] = MEMORY_SIZE;
         reg32[reg_ecx] = 0xF800;
         switch_seg(reg_cs, 0);
         switch_seg(reg_ss, 0);
@@ -579,7 +579,7 @@ function cycle()
     // call the instruction
     table[opcode]();
     // TODO
-    //if(flags & flag_trap)
+    //if(flags & FLAG_TRAP)
     //{
     //
     //}
@@ -1027,7 +1027,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
             dbg_log("not present");
             throw unimpl("#NP handler");
         }
-        if(flags & flag_vm)
+        if(flags & FLAG_VIRTUAL_8086_MODE)
         {
             throw unimpl("VM flag");
         }
@@ -1095,11 +1095,11 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         //dbg_log("current esp: " + h(reg32[reg_esp]), LOG_CPU);
         //dbg_log("call int " + h(interrupt_nr) + " from " + h(instruction_pointer) + " to " + h(base) + " with error_code=" + error_code, LOG_CPU);
         instruction_pointer = get_seg(reg_cs) + base | 0;
-        //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & flag_interrupt));
+        //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & FLAG_INTERRUPT));
         if(!is_trap)
         {
             // clear int flag for interrupt gates
-            flags &= ~flag_interrupt;
+            flags &= ~FLAG_INTERRUPT;
         }
         else
         {
@@ -1116,7 +1116,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         push16(flags);
         push16(sreg[reg_cs]);
         push16(get_real_ip());
-        flags = flags & ~flag_interrupt;
+        flags = flags & ~FLAG_INTERRUPT;
         switch_seg(reg_cs, memory.read16((interrupt_nr << 2) + 2));
         instruction_pointer = get_seg(reg_cs) + memory.read16(interrupt_nr << 2) | 0;
     }
@@ -1225,15 +1225,15 @@ function get_seg(segment /*, offset*/)
 }
 function arpl(seg, r16)
 {
-    flags_changed &= ~flag_zero;
+    flags_changed &= ~FLAG_ZERO;
     if((seg & 3) < (reg16[r16] & 3))
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return seg & ~3 | reg16[r16] & 3;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         return seg;
     }
 }
@@ -1241,7 +1241,7 @@ function handle_irqs()
 {
     if(pic)
     {
-        if((flags & flag_interrupt) && !page_fault)
+        if((flags & FLAG_INTERRUPT) && !page_fault)
         {
             pic.handle_irqs();
         }
@@ -1398,12 +1398,12 @@ function update_flags(new_flags)
     {
         // cpl != 0 and iopl <= cpl
         // can update interrupt flag but not iopl
-        flags = (new_flags & ~flag_iopl) | (flags & flag_iopl);
+        flags = (new_flags & ~FLAG_IO_PRIVILEGE_LEVEL) | (flags & FLAG_IO_PRIVILEGE_LEVEL);
     }
     else
     {
         // cannot update interrupt flag or iopl
-        flags = (new_flags & ~flag_iopl & ~flag_interrupt) | (flags & (flag_iopl | flag_interrupt));
+        flags = (new_flags & ~FLAG_IO_PRIVILEGE_LEVEL & ~FLAG_INTERRUPT) | (flags & (FLAG_IO_PRIVILEGE_LEVEL | FLAG_INTERRUPT));
     }
     flags_changed = 0;
     //flags = (flags & flags_mask) | flags_default;
@@ -2093,7 +2093,7 @@ function dump_regs()
     }
     out = "";
     var flg = { "cf": getcf, "pf": getpf, "zf": getzf, "sf": getsf,
-                "of": getof, "df": flag_direction, "if": flag_interrupt };
+                "of": getof, "df": FLAG_DIRECTION, "if": FLAG_INTERRUPT };
     for(var i in flg)
     {
         if(+flg[i])
@@ -2572,7 +2572,7 @@ function inc8(dest_operand)
     last_op2 = 1;
     last_result = last_op1 + 1 | 0;
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
     return last_result;
 }
 function inc16(dest_operand)
@@ -2582,7 +2582,7 @@ function inc16(dest_operand)
     last_op2 = 1;
     last_result = last_op1 + 1 | 0;
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
     return last_result;
 }
 function inc32(dest_operand)
@@ -2592,7 +2592,7 @@ function inc32(dest_operand)
     last_op2 = 1;
     last_result = last_op1 + 1;
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
     return last_result;
 }
 function dec8(dest_operand)
@@ -2602,7 +2602,7 @@ function dec8(dest_operand)
     last_op2 = -1;
     last_result = last_op1 - 1 | 0;
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
     return last_result;
 }
 function dec16(dest_operand)
@@ -2612,7 +2612,7 @@ function dec16(dest_operand)
     last_op2 = -1;
     last_result = last_op1 - 1 | 0;
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
     return last_result;
 }
 function dec32(dest_operand)
@@ -2622,7 +2622,7 @@ function dec32(dest_operand)
     last_op2 = -1;
     last_result = last_op1 - 1;
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
     return last_result;
 }
 /*
@@ -2680,11 +2680,11 @@ function mul8(source_operand)
     reg16[reg_ax] = result;
     if(result < 0x100)
     {
-        flags = flags & ~1 & ~flag_overflow;
+        flags = flags & ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags = flags | 1 | flag_overflow;
+        flags = flags | 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -2694,11 +2694,11 @@ function imul8(source_operand)
     reg16[reg_ax] = result;
     if(result > 0x7F || result < -0x80)
     {
-        flags = flags | 1 | flag_overflow;
+        flags = flags | 1 | FLAG_OVERFLOW;
     }
     else
     {
-        flags = flags & ~1 & ~flag_overflow;
+        flags = flags & ~1 & ~FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -2711,11 +2711,11 @@ function mul16(source_operand)
     reg16[reg_dx] = high_result;
     if(high_result === 0)
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -2730,11 +2730,11 @@ function imul16(source_operand)
     reg16[reg_dx] = result >> 16;
     if(result > 0x7FFF || result < -0x8000)
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     else
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -2750,11 +2750,11 @@ function imul_reg16(operand1, operand2)
     var result = operand1 * operand2;
     if(result > 0x7FFF || result < -0x8000)
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     else
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     flags_changed = 0;
     return result;
@@ -2767,11 +2767,11 @@ function mul32(source_operand)
     reg32[reg_edx] = high_result;
     if(high_result === 0)
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
     //console.log(memory.read32s(address) + " * " + old);
@@ -2791,11 +2791,11 @@ function imul32(source_operand)
     reg32[reg_edx] = high_result;
     if(high_result === (reg32[reg_eax] < 0x80000000 ? 0 : -1))
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
     //console.log(target_operand + " * " + source_operand);
@@ -2814,11 +2814,11 @@ function imul_reg32(operand1, operand2)
         high_result = operand1 * operand2 / 0x100000000 | 0;
     if(high_result === 0)
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
     return result;
@@ -2952,11 +2952,11 @@ function bcd_daa()
     var old_al = reg8[reg_al],
         old_cf = getcf(),
         old_af = getaf();
-    flags &= ~1 & ~flag_adjust
+    flags &= ~1 & ~FLAG_ADJUST
     if((old_al & 0xF) > 9 || old_af)
     {
         reg8[reg_al] += 6;
-        flags |= flag_adjust;
+        flags |= FLAG_ADJUST;
     }
     if(old_al > 0x99 || old_cf)
     {
@@ -2966,7 +2966,7 @@ function bcd_daa()
     last_result = reg8[reg_al];
     last_op_size = OPSIZE_8;
     last_op1 = last_op2 = 0;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_adjust & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_ADJUST & ~FLAG_OVERFLOW;
 }
 function bcd_das()
 {
@@ -2978,12 +2978,12 @@ function bcd_das()
     if((old_al & 0xF) > 9 || getaf())
     {
         reg8[reg_al] -= 6;
-        flags |= flag_adjust;
+        flags |= FLAG_ADJUST;
         flags = flags & ~1 | old_cf | reg8[reg_al] >> 7;
     }
     else
     {
-        flags &= ~flag_adjust;
+        flags &= ~FLAG_ADJUST;
     }
     if(old_al > 0x99 || old_cf)
     {
@@ -2993,7 +2993,7 @@ function bcd_das()
     last_result = reg8[reg_al];
     last_op_size = OPSIZE_8;
     last_op1 = last_op2 = 0;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_adjust & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_ADJUST & ~FLAG_OVERFLOW;
 }
 function bcd_aam()
 {
@@ -3027,14 +3027,14 @@ function bcd_aaa()
     {
         reg16[reg_ax] += 6;
         reg8[reg_ah] += 1;
-        flags |= flag_adjust | 1;
+        flags |= FLAG_ADJUST | 1;
     }
     else
     {
-        flags &= ~flag_adjust & ~1;
+        flags &= ~FLAG_ADJUST & ~1;
     }
     reg8[reg_al] &= 0xF;
-    flags_changed &= ~flag_adjust & ~1;
+    flags_changed &= ~FLAG_ADJUST & ~1;
 }
 function bcd_aas()
 {
@@ -3042,14 +3042,14 @@ function bcd_aas()
     {
         reg16[reg_ax] -= 6;
         reg8[reg_ah] -= 1;
-        flags |= flag_adjust | 1;
+        flags |= FLAG_ADJUST | 1;
     }
     else
     {
-        flags &= ~flag_adjust & ~1;
+        flags &= ~FLAG_ADJUST & ~1;
     }
     reg8[reg_al] &= 0xF;
-    flags_changed &= ~flag_adjust & ~1;
+    flags_changed &= ~FLAG_ADJUST & ~1;
 }
 /*                     \O
  * bitwise functions    | *                     /  *
@@ -3066,93 +3066,93 @@ function and8(dest_operand, source_operand)
 {
     last_result = dest_operand & source_operand;
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function and16(dest_operand, source_operand)
 {
     last_result = dest_operand & source_operand;
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function and32(dest_operand, source_operand)
 {
     last_result = dest_operand & source_operand;
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function test8(dest_operand, source_operand)
 {
     last_result = dest_operand & source_operand;
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 }
 function test16(dest_operand, source_operand)
 {
     last_result = dest_operand & source_operand;
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 }
 function test32(dest_operand, source_operand)
 {
     last_result = dest_operand & source_operand;
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 }
 function or8(dest_operand, source_operand)
 {
     last_result = dest_operand | source_operand;
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function or16(dest_operand, source_operand)
 {
     last_result = dest_operand | source_operand;
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function or32(dest_operand, source_operand)
 {
     last_result = dest_operand | source_operand;
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function xor8(dest_operand, source_operand)
 {
     last_result = dest_operand ^ source_operand;
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function xor16(dest_operand, source_operand)
 {
     last_result = dest_operand ^ source_operand;
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 function xor32(dest_operand, source_operand)
 {
     last_result = dest_operand ^ source_operand;
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
     return last_result;
 }
 /*
@@ -3166,10 +3166,10 @@ function rol8(dest_operand, count)
     }
     count &= 7;
     var result = dest_operand << count | dest_operand >> (8 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result & 1)
-                | (result << 11 ^ result << 4) & flag_overflow;
+                | (result << 11 ^ result << 4) & FLAG_OVERFLOW;
     return result;
 }
 function rol16(dest_operand, count)
@@ -3180,10 +3180,10 @@ function rol16(dest_operand, count)
     }
     count &= 15;
     var result = dest_operand << count | dest_operand >> (16 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result & 1)
-                | (result << 11 ^ result >> 4) & flag_overflow;
+                | (result << 11 ^ result >> 4) & FLAG_OVERFLOW;
     return result;
 }
 function rol32(dest_operand, count)
@@ -3193,10 +3193,10 @@ function rol32(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand << count | dest_operand >>> (32 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result & 1)
-                | (result << 11 ^ result >> 20) & flag_overflow;
+                | (result << 11 ^ result >> 20) & FLAG_OVERFLOW;
     return result;
 }
 function rcl8(dest_operand, count)
@@ -3207,10 +3207,10 @@ function rcl8(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand << count | getcf() << (count - 1) | dest_operand >> (9 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 8 & 1)
-                | (result << 3 ^ result << 4) & flag_overflow;
+                | (result << 3 ^ result << 4) & FLAG_OVERFLOW;
     return result;
 }
 function rcl16(dest_operand, count)
@@ -3221,10 +3221,10 @@ function rcl16(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand << count | getcf() << (count - 1) | dest_operand >> (17 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 16 & 1)
-                | (result >> 5 ^ result >> 4) & flag_overflow;
+                | (result >> 5 ^ result >> 4) & FLAG_OVERFLOW;
     return result;
 }
 function rcl32(dest_operand, count)
@@ -3238,9 +3238,9 @@ function rcl32(dest_operand, count)
     {
         result |= dest_operand >>> (33 - count);
     }
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >>> (32 - count) & 1);
-    flags |= (flags << 11 ^ result >> 20) & flag_overflow;
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >>> (32 - count) & 1);
+    flags |= (flags << 11 ^ result >> 20) & FLAG_OVERFLOW;
     return result;
 }
 function ror8(dest_operand, count)
@@ -3251,10 +3251,10 @@ function ror8(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand >> count | dest_operand << (8 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 7 & 1)
-                | (result << 4 ^ result << 5) & flag_overflow;
+                | (result << 4 ^ result << 5) & FLAG_OVERFLOW;
     return result;
 }
 function ror16(dest_operand, count)
@@ -3265,10 +3265,10 @@ function ror16(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand >> count | dest_operand << (16 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 15 & 1)
-                | (result >> 4 ^ result >> 3) & flag_overflow;
+                | (result >> 4 ^ result >> 3) & FLAG_OVERFLOW;
     return result;
 }
 function ror32(dest_operand, count)
@@ -3278,10 +3278,10 @@ function ror32(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand >>> count | dest_operand << (32 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 31 & 1)
-                | (result >> 20 ^ result >> 19) & flag_overflow;
+                | (result >> 20 ^ result >> 19) & FLAG_OVERFLOW;
     return result;
 }
 function rcr8(dest_operand, count)
@@ -3292,10 +3292,10 @@ function rcr8(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand >> count | getcf() << (8 - count) | dest_operand << (9 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 8 & 1)
-                | (result << 4 ^ result << 5) & flag_overflow;
+                | (result << 4 ^ result << 5) & FLAG_OVERFLOW;
     return result;
 }
 function rcr16(dest_operand, count)
@@ -3306,10 +3306,10 @@ function rcr16(dest_operand, count)
         return dest_operand;
     }
     var result = dest_operand >> count | getcf() << (16 - count) | dest_operand << (17 - count);
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 16 & 1)
-                | (result >> 4 ^ result >> 3) & flag_overflow;
+                | (result >> 4 ^ result >> 3) & FLAG_OVERFLOW;
     return result;
 }
 function rcr32(dest_operand, count)
@@ -3323,10 +3323,10 @@ function rcr32(dest_operand, count)
     {
         result |= dest_operand << (33 - count);
     }
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >> (count - 1) & 1)
-                | (result >> 20 ^ result >> 19) & flag_overflow;
+                | (result >> 20 ^ result >> 19) & FLAG_OVERFLOW;
     return result;
 }
 function shl8(dest_operand, count)
@@ -3337,10 +3337,10 @@ function shl8(dest_operand, count)
     }
     last_result = dest_operand << count;
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (last_result >> 8 & 1)
-                | (last_result << 3 ^ last_result << 4) & flag_overflow;
+                | (last_result << 3 ^ last_result << 4) & FLAG_OVERFLOW;
     return last_result;
 }
 function shl16(dest_operand, count)
@@ -3351,10 +3351,10 @@ function shl16(dest_operand, count)
     }
     last_result = dest_operand << count;
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (last_result >> 16 & 1)
-                | (last_result >> 5 ^ last_result >> 4) & flag_overflow;
+                | (last_result >> 5 ^ last_result >> 4) & FLAG_OVERFLOW;
     return last_result;
 }
 function shl32(dest_operand, count)
@@ -3365,10 +3365,10 @@ function shl32(dest_operand, count)
     }
     last_result = dest_operand << count;
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
     // test this
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >>> (32 - count) & 1);
-    flags |= ((flags & 1) ^ (last_result >> 31 & 1)) << 11 & flag_overflow;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >>> (32 - count) & 1);
+    flags |= ((flags & 1) ^ (last_result >> 31 & 1)) << 11 & FLAG_OVERFLOW;
     return last_result;
 }
 function shr8(dest_operand, count)
@@ -3379,10 +3379,10 @@ function shr8(dest_operand, count)
     }
     last_result = dest_operand >> count;
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >> (count - 1) & 1)
-                | (dest_operand >> 7 & 1) << 11 & flag_overflow;
+                | (dest_operand >> 7 & 1) << 11 & FLAG_OVERFLOW;
     return last_result;
 }
 function shr16(dest_operand, count)
@@ -3393,10 +3393,10 @@ function shr16(dest_operand, count)
     }
     last_result = dest_operand >> count;
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >> (count - 1) & 1)
-                | (dest_operand >> 4) & flag_overflow;
+                | (dest_operand >> 4) & FLAG_OVERFLOW;
     return last_result;
 }
 function shr32(dest_operand, count)
@@ -3407,10 +3407,10 @@ function shr32(dest_operand, count)
     }
     last_result = dest_operand >>> count;
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >>> (count - 1) & 1)
-                | (dest_operand >> 20) & flag_overflow;
+                | (dest_operand >> 20) & FLAG_OVERFLOW;
     return last_result;
 }
 function sar8(dest_operand, count)
@@ -3421,8 +3421,8 @@ function sar8(dest_operand, count)
     }
     last_result = dest_operand >> count;
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >> (count - 1) & 1);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >> (count - 1) & 1);
     // of is zero
     return last_result;
 }
@@ -3434,8 +3434,8 @@ function sar16(dest_operand, count)
     }
     last_result = dest_operand >> count;
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >> (count - 1) & 1);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >> (count - 1) & 1);
     return last_result;
 }
 function sar32(dest_operand, count)
@@ -3446,8 +3446,8 @@ function sar32(dest_operand, count)
     }
     last_result = dest_operand >> count;
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >>> (count - 1) & 1);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >>> (count - 1) & 1);
     return last_result;
 }
 function shrd16(dest_operand, source_operand, count)
@@ -3467,8 +3467,8 @@ function shrd16(dest_operand, source_operand, count)
         flags = (flags & ~1) | (source_operand >> (count - 17) & 1);
     }
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
-    flags = (flags & ~flag_overflow) | ((last_result ^ dest_operand) >> 4 & flag_overflow);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
+    flags = (flags & ~FLAG_OVERFLOW) | ((last_result ^ dest_operand) >> 4 & FLAG_OVERFLOW);
     return last_result;
 }
 function shrd32(dest_operand, source_operand, count)
@@ -3479,9 +3479,9 @@ function shrd32(dest_operand, source_operand, count)
     }
     last_result = dest_operand >>> count | source_operand << (32 - count);
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
     flags = (flags & ~1) | (dest_operand >>> (count - 1) & 1);
-    flags = (flags & ~flag_overflow) | ((last_result ^ dest_operand) >> 20 & flag_overflow);
+    flags = (flags & ~FLAG_OVERFLOW) | ((last_result ^ dest_operand) >> 20 & FLAG_OVERFLOW);
     return last_result;
 }
 function shld16(dest_operand, source_operand, count)
@@ -3501,8 +3501,8 @@ function shld16(dest_operand, source_operand, count)
         flags = (flags & ~1) | (source_operand >>> (32 - count) & 1);
     }
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
-    flags = (flags & ~flag_overflow) | ((flags & 1) ^ (last_result >> 15 & 1)) << 11;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
+    flags = (flags & ~FLAG_OVERFLOW) | ((flags & 1) ^ (last_result >> 15 & 1)) << 11;
     return last_result;
 }
 function shld32(dest_operand, source_operand, count)
@@ -3513,10 +3513,10 @@ function shld32(dest_operand, source_operand, count)
     }
     last_result = dest_operand << count | source_operand >>> (32 - count);
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
     // test this
     flags = (flags & ~1) | (dest_operand >>> (32 - count) & 1);
-    flags = (flags & ~flag_overflow) | ((flags & 1) ^ (last_result >> 31 & 1)) << 11;
+    flags = (flags & ~FLAG_OVERFLOW) | ((flags & 1) ^ (last_result >> 31 & 1)) << 11;
     return last_result;
 }
 function bt_reg(bit_base, bit_offset)
@@ -3586,13 +3586,13 @@ function bsf16(old, bit_base)
     flags_changed = 0;
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         // not defined in the docs, but value doesn't change on my intel cpu
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         return mod37_bit_position[((-bit_base & bit_base) >>> 0) % 37];
     }
 }
@@ -3601,12 +3601,12 @@ function bsf32(old, bit_base)
     flags_changed = 0;
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         return mod37_bit_position[((-bit_base & bit_base) >>> 0) % 37];
     }
 }
@@ -3615,12 +3615,12 @@ function bsr16(old, bit_base)
     flags_changed = 0;
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         var t = bit_base >>> 8;
         if(t)
         {
@@ -3637,12 +3637,12 @@ function bsr32(old, bit_base)
     flags_changed = 0;
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         var tt = bit_base >>> 16,
             t;
         if(tt)
@@ -3782,7 +3782,7 @@ function test_le()
 {
     return getzf() || !getsf() !== !getof();
 }
-/** 
+/**
  * @return {number}
  * @const
  */
@@ -3810,62 +3810,62 @@ function getcf()
 /** @return {number} */
 function getpf()
 {
-    if(flags_changed & flag_parity)
+    if(flags_changed & FLAG_PARITY)
     {
         // inverted lookup table
-        return 0x9669 << 2 >> ((last_result ^ last_result >> 4) & 0xF) & flag_parity;
+        return 0x9669 << 2 >> ((last_result ^ last_result >> 4) & 0xF) & FLAG_PARITY;
     }
     else
     {
-        return flags & flag_parity;
+        return flags & FLAG_PARITY;
     }
 }
 /** @return {number} */
 function getaf()
 {
-    if(flags_changed & flag_adjust)
+    if(flags_changed & FLAG_ADJUST)
     {
-        return (last_op1 ^ last_op2 ^ last_result ^ (last_op2 < 0) << 4) & flag_adjust;
+        return (last_op1 ^ last_op2 ^ last_result ^ (last_op2 < 0) << 4) & FLAG_ADJUST;
     }
     else
     {
-        return flags & flag_adjust;
+        return flags & FLAG_ADJUST;
     }
 }
 /** @return {number} */
 function getzf()
 {
-    if(flags_changed & flag_zero)
+    if(flags_changed & FLAG_ZERO)
     {
-        return (~last_result & last_result - 1) >> last_op_size - 7 & flag_zero;
+        return (~last_result & last_result - 1) >> last_op_size - 7 & FLAG_ZERO;
     }
     else
     {
-        return flags & flag_zero;
+        return flags & FLAG_ZERO;
     }
 }
 /** @return {number} */
 function getsf()
 {
-    if(flags_changed & flag_sign)
+    if(flags_changed & FLAG_SIGN)
     {
-        return last_result >> last_op_size - 8 & flag_sign;
+        return last_result >> last_op_size - 8 & FLAG_SIGN;
     }
     else
     {
-        return flags & flag_sign;
+        return flags & FLAG_SIGN;
     }
 }
 /** @return {number} */
 function getof()
 {
-    if(flags_changed & flag_overflow)
+    if(flags_changed & FLAG_OVERFLOW)
     {
-        return (((last_op1 ^ last_result) & (last_op2 ^ last_result)) >> last_op_size - 1) << 11 & flag_overflow;
+        return (((last_op1 ^ last_result) & (last_op2 ^ last_result)) >> last_op_size - 1) << 11 & FLAG_OVERFLOW;
     }
     else
     {
-        return flags & flag_overflow;
+        return flags & FLAG_OVERFLOW;
     }
 }
 function push16(imm16)
@@ -3895,7 +3895,7 @@ function pop32s()
 function pusha16()
 {
     var temp = reg16[reg_sp];
-    // make sure we don't get a pagefault after having 
+    // make sure we don't get a pagefault after having
     // pushed several registers already
     translate_address_write(temp - 15);
     push16(reg16[reg_ax]);
@@ -4068,102 +4068,102 @@ function bswap(reg)
  */
 function movsb()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !true) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { safe_write8(dest, safe_read8(src)); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write8(dest, safe_read8(src)); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !true) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { safe_write8(dest, safe_read8(src)); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write8(dest, safe_read8(src)); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
 }
 function movsw()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !true) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { var phys_src = translate_address_read(src); var phys_dest = translate_address_write(dest); memory.write_aligned16(phys_dest, memory.read_aligned16(phys_src)); }; } else { { safe_write16(dest, safe_read16(src)); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write16(dest, safe_read16(src)); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !true) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { var phys_src = translate_address_read(src); var phys_dest = translate_address_write(dest); memory.write_aligned16(phys_dest, memory.read_aligned16(phys_src)); }; } else { { safe_write16(dest, safe_read16(src)); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write16(dest, safe_read16(src)); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
 }
 function movsd()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !true) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { var phys_src = translate_address_read(src); var phys_dest = translate_address_write(dest); memory.write_aligned32(phys_dest, memory.read_aligned32(phys_src)); }; } else { { safe_write32(dest, safe_read32s(src)); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write32(dest, safe_read32s(src)); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !true) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { var phys_src = translate_address_read(src); var phys_dest = translate_address_write(dest); memory.write_aligned32(phys_dest, memory.read_aligned32(phys_src)); }; } else { { safe_write32(dest, safe_read32s(src)); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write32(dest, safe_read32s(src)); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
 }
 function cmpsb()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(true && !true) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { data_dest = safe_read8(dest); data_src = safe_read8(src); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read8(dest); data_src = safe_read8(src); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(true) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(true && !true) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { data_dest = safe_read8(dest); data_src = safe_read8(src); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read8(dest); data_src = safe_read8(src); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(true) cmp8(data_src, data_dest);;
 }
 function cmpsw()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(16 >> 3) : 16 >> 3; var ds, es; if(true && !true) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned16(translate_address_read(dest)); data_src = memory.read_aligned16(translate_address_read(src)); }; } else { { data_dest = safe_read16(dest); data_src = safe_read16(src); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read16(dest); data_src = safe_read16(src); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(true) cmp16(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(16 >> 3) : 16 >> 3; var ds, es; if(true && !true) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned16(translate_address_read(dest)); data_src = memory.read_aligned16(translate_address_read(src)); }; } else { { data_dest = safe_read16(dest); data_src = safe_read16(src); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read16(dest); data_src = safe_read16(src); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(true) cmp16(data_src, data_dest);;
 }
 function cmpsd()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(true && !true) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned32(translate_address_read(dest)) >>> 0; data_src = memory.read_aligned32(translate_address_read(src)) >>> 0; }; } else { { data_dest = (safe_read32s(dest) >>> 0); data_src = (safe_read32s(src) >>> 0); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = (safe_read32s(dest) >>> 0); data_src = (safe_read32s(src) >>> 0); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(true) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(true && !true) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned32(translate_address_read(dest)) >>> 0; data_src = memory.read_aligned32(translate_address_read(src)) >>> 0; }; } else { { data_dest = (safe_read32s(dest) >>> 0); data_src = (safe_read32s(src) >>> 0); }; } if(true) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = (safe_read32s(dest) >>> 0); data_src = (safe_read32s(src) >>> 0); }; if(true) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(true) cmp32(data_src, data_dest);;
 }
 function stosb()
 {
     var data = reg8[reg_al];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { safe_write8(dest, data); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write8(dest, data); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { safe_write8(dest, data); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write8(dest, data); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
 }
 function stosw()
 {
     var data = reg16[reg_ax];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !false) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!false || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { memory.write_aligned16(translate_address_write(dest), data); }; } else { { safe_write16(dest, data); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write16(dest, data); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !false) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!false || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { memory.write_aligned16(translate_address_write(dest), data); }; } else { { safe_write16(dest, data); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write16(dest, data); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
 }
 function stosd()
 {
     //dbg_log("stosd " + ((reg32[reg_edi] & 3) ? "mis" : "") + "aligned", LOG_CPU);
     var data = reg32[reg_eax];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !false) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!false || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { memory.write_aligned32(translate_address_write(dest), data); }; } else { { safe_write32(dest, data); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write32(dest, data); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !false) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!false || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { memory.write_aligned32(translate_address_write(dest), data); }; } else { { safe_write32(dest, data); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write32(dest, data); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
 }
 function lodsb()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !true) data_src = reg8[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!false || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { reg8[reg_al] = safe_read8(src); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { reg8[reg_al] = safe_read8(src); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !true) data_src = reg8[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!false || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { reg8[reg_al] = safe_read8(src); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { reg8[reg_al] = safe_read8(src); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
 }
 function lodsw()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !true) data_src = reg16[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!false || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { reg16[reg_ax] = safe_read16(src); }; } else { { reg16[reg_ax] = safe_read16(src); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { reg16[reg_ax] = safe_read16(src); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !true) data_src = reg16[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!false || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { reg16[reg_ax] = safe_read16(src); }; } else { { reg16[reg_ax] = safe_read16(src); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { reg16[reg_ax] = safe_read16(src); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
 }
 function lodsd()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !true) data_src = reg32[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!false || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { reg32[reg_eax] = safe_read32s(src); }; } else { { reg32[reg_eax] = safe_read32s(src); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { reg32[reg_eax] = safe_read32s(src); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !true) data_src = reg32[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!false || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { reg32[reg_eax] = safe_read32s(src); }; } else { { reg32[reg_eax] = safe_read32s(src); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { reg32[reg_eax] = safe_read32s(src); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
 }
 function scasb()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(true && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { data_dest = safe_read8(dest); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read8(dest); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(true) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(true && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { {}; } else { { data_dest = safe_read8(dest); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read8(dest); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(true) cmp8(data_src, data_dest);;
 }
 function scasw()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(16 >> 3) : 16 >> 3; var ds, es; if(true && !false) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!false || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned16(translate_address_read(dest)); }; } else { { data_dest = safe_read16(dest); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read16(dest); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(true) cmp16(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(16 >> 3) : 16 >> 3; var ds, es; if(true && !false) data_src = reg16[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!true || (dest & (16 >> 3) - 1) === 0) && (!false || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned16(translate_address_read(dest)); }; } else { { data_dest = safe_read16(dest); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = safe_read16(dest); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(true) cmp16(data_src, data_dest);;
 }
 function scasd()
 {
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(true && !false) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!false || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned32(translate_address_read(dest)) >>> 0; }; } else { { data_dest = (safe_read32s(dest) >>> 0); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = (safe_read32s(dest) >>> 0); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(true) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(true && !false) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!false || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { data_dest = memory.read_aligned32(translate_address_read(dest)) >>> 0; }; } else { { data_dest = (safe_read32s(dest) >>> 0); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!true || (data_src === data_dest) === repeat_string_type)); } else { { data_dest = (safe_read32s(dest) >>> 0); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(true) cmp32(data_src, data_dest);;
 }
 function insb()
 {
     var port = reg16[reg_dx];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { { }; } else { { safe_write8(dest, in8(port)); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write8(dest, in8(port)); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { { }; } else { { safe_write8(dest, in8(port)); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write8(dest, in8(port)); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
 }
 function insw()
 {
     var port = reg16[reg_dx];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { { var phys_dest = translate_address_write(dest); memory.write_aligned16(phys_dest, in16(port)); }; } else { { safe_write16(dest, in16(port)); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write16(dest, in16(port)); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !false) data_src = reg8[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!true || (dest & (8 >> 3) - 1) === 0) && (!false || (src & (8 >> 3) - 1) === 0); do { if(aligned) { { var phys_dest = translate_address_write(dest); memory.write_aligned16(phys_dest, in16(port)); }; } else { { safe_write16(dest, in16(port)); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write16(dest, in16(port)); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
 }
 function insd()
 {
     var port = reg16[reg_dx];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !false) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!false || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { var phys_dest = translate_address_write(dest); memory.write_aligned32(phys_dest, in32(port)); }; } else { { safe_write32(dest, in32(port)); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write32(dest, in32(port)); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !false) data_src = reg32[reg_eax]; if(true) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(false) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!true || (dest & (32 >> 3) - 1) === 0) && (!false || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { var phys_dest = translate_address_write(dest); memory.write_aligned32(phys_dest, in32(port)); }; } else { { safe_write32(dest, in32(port)); }; } if(true) dest += size, regv[reg_vdi] += size; if(false) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { safe_write32(dest, in32(port)); }; if(true) regv[reg_vdi] += size; if(false) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
 }
 function outsb()
 {
     var port = reg16[reg_dx];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !true) data_src = reg8[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!false || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { { out8(port, safe_read8(src)); }; } else { { out8(port, safe_read8(src)); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { out8(port, safe_read8(src)); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(8 >> 3) : 8 >> 3; var ds, es; if(false && !true) data_src = reg8[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 8 > 8 && (!false || (dest & (8 >> 3) - 1) === 0) && (!true || (src & (8 >> 3) - 1) === 0); do { if(aligned) { { out8(port, safe_read8(src)); }; } else { { out8(port, safe_read8(src)); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { out8(port, safe_read8(src)); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp8(data_src, data_dest);;
 }
 function outsw()
 {
     var port = reg16[reg_dx];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !true) data_src = reg16[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!false || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { out16(port, safe_read16(src)); }; } else { { out16(port, safe_read16(src)); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { out16(port, safe_read16(src)); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(16 >> 3) : 16 >> 3; var ds, es; if(false && !true) data_src = reg16[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 16 > 8 && (!false || (dest & (16 >> 3) - 1) === 0) && (!true || (src & (16 >> 3) - 1) === 0); do { if(aligned) { { out16(port, safe_read16(src)); }; } else { { out16(port, safe_read16(src)); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { out16(port, safe_read16(src)); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp16(data_src, data_dest);;
 }
 function outsd()
 {
     var port = reg16[reg_dx];
-    var src, dest, data_src, data_dest; var size = flags & flag_direction ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !true) data_src = reg32[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!false || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { out32(port, safe_read32s(src)); }; } else { { out32(port, safe_read32s(src)); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { out32(port, safe_read32s(src)); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
+    var src, dest, data_src, data_dest; var size = flags & FLAG_DIRECTION ? -(32 >> 3) : 32 >> 3; var ds, es; if(false && !true) data_src = reg32[reg_eax]; if(false) es = get_seg(reg_es), dest = es + regv[reg_vdi]; if(true) ds = get_seg_prefix(reg_ds), src = ds + regv[reg_vsi]; if(repeat_string_prefix) { if(regv[reg_vcx] === 0) return; var aligned = 32 > 8 && (!false || (dest & (32 >> 3) - 1) === 0) && (!true || (src & (32 >> 3) - 1) === 0); do { if(aligned) { { out32(port, safe_read32s(src)); }; } else { { out32(port, safe_read32s(src)); }; } if(false) dest += size, regv[reg_vdi] += size; if(true) src += size, regv[reg_vsi] += size; } while(--regv[reg_vcx] && (!false || (data_src === data_dest) === repeat_string_type)); } else { { out32(port, safe_read32s(src)); }; if(false) regv[reg_vdi] += size; if(true) regv[reg_vsi] += size; } if(false) cmp32(data_src, data_dest);;
 }
 "use strict";
 /** @const */
 var FPU_LOG_OP = true;
-/** 
+/**
  * this behaves as if no x87 fpu existed
  * @constructor
  */
@@ -4390,8 +4390,8 @@ function FPU(io)
     function fcomi(y)
     {
         var x = st[stack_ptr];
-        flags_changed &= ~(1 | flag_parity | flag_zero);
-        flags &= ~(1 | flag_parity | flag_zero);
+        flags_changed &= ~(1 | FLAG_PARITY | FLAG_ZERO);
+        flags &= ~(1 | FLAG_PARITY | FLAG_ZERO);
         if(x > y)
         {
         }
@@ -4401,11 +4401,11 @@ function FPU(io)
         }
         else if(x === y)
         {
-            flags |= flag_zero;
+            flags |= FLAG_ZERO;
         }
         else
         {
-            flags |= 1 | flag_parity | flag_zero;
+            flags |= 1 | FLAG_PARITY | FLAG_ZERO;
         }
     }
     function fucomi(y)
@@ -5638,9 +5638,6 @@ var table16 = [], // 16 位模式下的操作指令集映射
 const REG8_POSITION_MAP = [0, 4, 8, 12, 1, 5, 9, 13];
 // 最后三位
 // 中间三位
-// #define reg_e8 reg8[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]
-// #define reg_e8s reg8s[modrm_byte << 2 & 0xC | modrm_byte >> 2 & 1]
-// #define reg_g8 reg8[modrm_byte >> 1 & 0xC | modrm_byte >> 5 & 1]
 // 16 位寄存器，因为是 32 位内存，所以需要跳着选
 // ax, cx, dx, bx, sp, bp, si, di
 // 0,  2,  4,  6,  8,  10, 12, 14
@@ -5648,10 +5645,6 @@ const REG8_POSITION_MAP = [0, 4, 8, 12, 1, 5, 9, 13];
 const REG16_POSITION_MAP = [0, 2, 4, 6, 8, 10, 12, 14];
 // 最后三位
 // 中间三位
-// #define reg_e16 reg16[modrm_byte << 1 & 14]
-// #define reg_e16s reg16s[modrm_byte << 1 & 14]
-// #define reg_g16 reg16[modrm_byte >> 2 & 14]
-// #define reg_g16s reg16s[modrm_byte >> 2 & 14]
 // 32 位寄存器
 // eax, ecx, edx, ebx, esp, ebp, esi, edi
 // 0    1    2    3    4    5    6    7
@@ -5787,7 +5780,7 @@ table16[0xCB] = function() { { /* retf*/ if(protected_mode) { throw unimpl("16 b
 table16[0xCC] = table32[0xCC] = function() { { /* INT3*/ call_interrupt_vector(3, true, false); } };;
 table16[0xCD] = table32[0xCD] = function() { { /* INT*/ var imm8 = read_imm8(); call_interrupt_vector(imm8, true, false); } };;
 table16[0xCE] = table32[0xCE] = function() { { /* INTO*/ if(getof()) { call_interrupt_vector(4, true, false); } } };;
-table16[0xCF] = function() { { /* iret*/ if(protected_mode) { throw unimpl("16 bit iret in protected mode"); } var ip = pop16(); switch_seg(reg_cs, pop16()); var new_flags = pop16(); instruction_pointer = ip + get_seg(reg_cs) | 0; flags = new_flags; flags_changed = 0; handle_irqs(); } }; table32[0xCF] = function() { { /* iret*/ if(!protected_mode) { throw unimpl("32 bit iret in real mode"); } else { if(flags & flag_nt) { if(DEBUG) throw "unimplemented nt"; } if(flags & flag_vm) { if(DEBUG) throw "unimplemented vm"; } } /*dbg_log("pop eip from " + h(reg32[reg_esp], 8));*/ instruction_pointer = pop32s(); /*dbg_log("IRET | from " + h(previous_ip) + " to " + h(instruction_pointer));*/ sreg[reg_cs] = pop32s(); /*instruction_pointer += get_seg(reg_cs);*/ var new_flags = pop32s(); if(new_flags & flag_vm) { if(DEBUG) throw "unimplemented"; } /* protected mode return*/ var info = lookup_segment_selector(sreg[reg_cs]); if(info.is_null) { throw unimpl("is null"); } if(!info.is_present) { throw unimpl("not present"); } if(!info.is_executable) { throw unimpl("not exec"); } if(info.rpl < cpl) { throw unimpl("rpl < cpl"); } if(info.dc_bit && info.dpl > info.rpl) { throw unimpl("conforming and dpl > rpl"); } if(info.rpl > cpl) { /* outer privilege return*/ var temp_esp = pop32s(); var temp_ss = pop32s(); reg32[reg_esp] = temp_esp; update_flags(new_flags); cpl = info.rpl; switch_seg(reg_ss, temp_ss & 0xFFFF); /*dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) +*/ /*        " cs:eip=" + h(sreg[reg_cs],4) + ":" + h(get_real_ip(), 8) +*/ /*        " ss:esp=" + h(temp_ss & 0xFFFF, 2) + ":" + h(temp_esp, 8), LOG_CPU);*/ cpl_changed(); } else { update_flags(new_flags); /* same privilege return*/ /*dbg_log(h(new_flags) + " " + h(flags));*/ /*dbg_log("iret to " + h(instruction_pointer));*/ } /*dbg_log("iret if=" + (flags & flag_interrupt) + " cpl=" + cpl);*/ dbg_assert(!page_fault); handle_irqs(); } };;
+table16[0xCF] = function() { { /* iret*/ if(protected_mode) { throw unimpl("16 bit iret in protected mode"); } var ip = pop16(); switch_seg(reg_cs, pop16()); var new_flags = pop16(); instruction_pointer = ip + get_seg(reg_cs) | 0; flags = new_flags; flags_changed = 0; handle_irqs(); } }; table32[0xCF] = function() { { /* iret*/ if(!protected_mode) { throw unimpl("32 bit iret in real mode"); } else { if(flags & FLAG_NESTED_TASK) { if(DEBUG) throw "unimplemented nt"; } if(flags & FLAG_VIRTUAL_8086_MODE) { if(DEBUG) throw "unimplemented vm"; } } /*dbg_log("pop eip from " + h(reg32[reg_esp], 8));*/ instruction_pointer = pop32s(); /*dbg_log("IRET | from " + h(previous_ip) + " to " + h(instruction_pointer));*/ sreg[reg_cs] = pop32s(); /*instruction_pointer += get_seg(reg_cs);*/ var new_flags = pop32s(); if(new_flags & FLAG_VIRTUAL_8086_MODE) { if(DEBUG) throw "unimplemented"; } /* protected mode return*/ var info = lookup_segment_selector(sreg[reg_cs]); if(info.is_null) { throw unimpl("is null"); } if(!info.is_present) { throw unimpl("not present"); } if(!info.is_executable) { throw unimpl("not exec"); } if(info.rpl < cpl) { throw unimpl("rpl < cpl"); } if(info.dc_bit && info.dpl > info.rpl) { throw unimpl("conforming and dpl > rpl"); } if(info.rpl > cpl) { /* outer privilege return*/ var temp_esp = pop32s(); var temp_ss = pop32s(); reg32[reg_esp] = temp_esp; update_flags(new_flags); cpl = info.rpl; switch_seg(reg_ss, temp_ss & 0xFFFF); /*dbg_log("iret cpl=" + cpl + " to " + h(instruction_pointer) +*/ /*        " cs:eip=" + h(sreg[reg_cs],4) + ":" + h(get_real_ip(), 8) +*/ /*        " ss:esp=" + h(temp_ss & 0xFFFF, 2) + ":" + h(temp_esp, 8), LOG_CPU);*/ cpl_changed(); } else { update_flags(new_flags); /* same privilege return*/ /*dbg_log(h(new_flags) + " " + h(flags));*/ /*dbg_log("iret to " + h(instruction_pointer));*/ } /*dbg_log("iret if=" + (flags & FLAG_INTERRUPT) + " cpl=" + cpl);*/ dbg_assert(!page_fault); handle_irqs(); } };;
 table16[0xD0] = table32[0xD0] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rol8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = rol8(data, 1); }; }; break; case 1: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, ror8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = ror8(data, 1); }; }; break; case 2: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcl8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = rcl8(data, 1); }; }; break; case 3: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcr8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = rcr8(data, 1); }; }; break; case 4: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = shl8(data, 1); }; }; break; case 5: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shr8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = shr8(data, 1); }; }; break; case 6: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = shl8(data, 1); }; }; break; case 7: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, sar8(data, 1)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = sar8(data, 1); }; }; break; } } };;
 table16[0xD1] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, rol16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, rol16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = rol16(data, 1); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, ror16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, ror16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = ror16(data, 1); }; }; break; case 2: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, rcl16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, rcl16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = rcl16(data, 1); }; }; break; case 3: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, rcr16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, rcr16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = rcr16(data, 1); }; }; break; case 4: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, shl16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, shl16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = shl16(data, 1); }; }; break; case 5: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, shr16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, shr16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = shr16(data, 1); }; }; break; case 6: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, shl16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, shl16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = shl16(data, 1); }; }; break; case 7: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, sar16(data, 1)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, sar16(data, 1)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = sar16(data, 1); }; }; break; } } }; table32[0xD1] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, rol32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, rol32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = rol32(data, 1); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, ror32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, ror32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = ror32(data, 1); }; }; break; case 2: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, rcl32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, rcl32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = rcl32(data, 1); }; }; break; case 3: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, rcr32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, rcr32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = rcr32(data, 1); }; }; break; case 4: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, shl32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, shl32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = shl32(data, 1); }; }; break; case 5: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, shr32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, shr32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = shr32(data, 1); }; }; break; case 6: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, shl32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, shl32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = shl32(data, 1); }; }; break; case 7: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, sar32(data, 1)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, sar32(data, 1)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = sar32(data, 1); }; }; break; } } };;
 table16[0xD2] = table32[0xD2] = function() { var modrm_byte = read_imm8(); { var shift = reg8[reg_cl] & 31; switch(modrm_byte >> 3 & 7) { case 0: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rol8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = rol8(data, shift); }; }; break; case 1: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, ror8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = ror8(data, shift); }; }; break; case 2: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcl8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = rcl8(data, shift); }; }; break; case 3: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, rcr8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = rcr8(data, shift); }; }; break; case 4: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = shl8(data, shift); }; }; break; case 5: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shr8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = shr8(data, shift); }; }; break; case 6: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, shl8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = shl8(data, shift); }; }; break; case 7: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, sar8(data, shift)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = sar8(data, shift); }; }; break; } } };;
@@ -5825,16 +5818,16 @@ table16[0xF0] = table32[0xF0] = function() { { /* lock*/ /* TODO*/ /* This trigg
 table16[0xF1] = table32[0xF1] = function() { { /* INT1*/ /* https://code.google.com/p/corkami/wiki/x86oddities#IceBP*/ throw unimpl("int1 instruction"); } };;
 table16[0xF2] = table32[0xF2] = function() { { /* repnz*/ dbg_assert(!repeat_string_prefix); repeat_string_prefix = true; repeat_string_type = false; table[read_imm8()](); repeat_string_prefix = false; } };;
 table16[0xF3] = table32[0xF3] = function() { { /* repz*/ dbg_assert(!repeat_string_prefix); repeat_string_prefix = true; repeat_string_type = true; table[read_imm8()](); repeat_string_prefix = false; } };;
-table16[0xF4] = table32[0xF4] = function() { { if(cpl) { trigger_gp(0); } /* hlt*/ if((flags & flag_interrupt) === 0) { log("cpu halted"); stopped = true; if(DEBUG) dump_regs(); throw "HALT"; } else { /* infinite loop until an irq happens*/ /* this is handled in call_interrupt_vector*/ instruction_pointer--; in_hlt = true; } } };;
+table16[0xF4] = table32[0xF4] = function() { { if(cpl) { trigger_gp(0); } /* hlt*/ if((flags & FLAG_INTERRUPT) === 0) { log("cpu halted"); stopped = true; if(DEBUG) dump_regs(); throw "HALT"; } else { /* infinite loop until an irq happens*/ /* this is handled in call_interrupt_vector*/ instruction_pointer--; in_hlt = true; } } };;
 table16[0xF5] = table32[0xF5] = function() { { /* cmc*/ flags = (flags | 1) ^ getcf(); flags_changed &= ~1; } };;
 table16[0xF6] = table32[0xF6] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; }; test8(data, read_imm8()); }; break; case 1: { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; }; test8(data, read_imm8()); }; break; case 2: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, not8(data)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = not8(data); }; }; break; case 3: { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, neg8(data)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = neg8(data); }; }; break; case 4: { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; }; mul8(data); }; break; case 5: { if(modrm_byte < 0xC0) { var data = safe_read8s(modrm_resolve(modrm_byte)); } else { data = reg8s[REG8_POSITION_MAP[modrm_byte & 7]]; }; imul8(data); }; break; case 6: { if(modrm_byte < 0xC0) { var data = safe_read8(modrm_resolve(modrm_byte)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; }; div8(data); }; break; case 7: { if(modrm_byte < 0xC0) { var data = safe_read8s(modrm_resolve(modrm_byte)); } else { data = reg8s[REG8_POSITION_MAP[modrm_byte & 7]]; }; idiv8(data); }; break; } } };;
 table16[0xF7] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; test16(data, read_imm16()); }; break; case 1: { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; test16(data, read_imm16()); }; break; case 2: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, not16(data)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, not16(data)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = not16(data); }; }; break; case 3: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, neg16(data)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, neg16(data)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = neg16(data); }; }; break; case 4: { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; mul16(data); }; break; case 5: { if(modrm_byte < 0xC0) { var data = (safe_read16(modrm_resolve(modrm_byte)) << 16 >> 16); } else { data = reg16s[REG16_POSITION_MAP[modrm_byte & 7]]; }; imul16(data); }; break; case 6: { if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; div16(data); }; break; case 7: { if(modrm_byte < 0xC0) { var data = (safe_read16(modrm_resolve(modrm_byte)) << 16 >> 16); } else { data = reg16s[REG16_POSITION_MAP[modrm_byte & 7]]; }; idiv16(data); }; break; } } }; table32[0xF7] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; test32(data, read_imm32s()); }; break; case 1: { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; test32(data, read_imm32s()); }; break; case 2: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, not32(data)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, not32(data)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = not32(data); }; }; break; case 3: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, neg32(data)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, neg32(data)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = neg32(data); }; }; break; case 4: { if(modrm_byte < 0xC0) { var data = (safe_read32s(modrm_resolve(modrm_byte)) >>> 0); } else { data = reg32[modrm_byte & 7]; }; mul32(data); }; break; case 5: { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; imul32(data); }; break; case 6: { if(modrm_byte < 0xC0) { var data = (safe_read32s(modrm_resolve(modrm_byte)) >>> 0); } else { data = reg32[modrm_byte & 7]; }; div32(data); }; break; case 7: { if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; idiv32(data); }; break; } } };;
-table16[0xF8] = table32[0xF8] = function() { { /* clc*/ flags &= ~flag_carry; flags_changed &= ~1; } };;
-table16[0xF9] = table32[0xF9] = function() { { /* stc*/ flags |= flag_carry; flags_changed &= ~1; } };;
-table16[0xFA] = table32[0xFA] = function() { { /* cli*/ /*dbg_log("interrupts off");*/ if(!privileges_for_io()) { trigger_gp(0); } else { flags &= ~flag_interrupt; } } };;
-table16[0xFB] = table32[0xFB] = function() { { /* sti*/ /*dbg_log("interrupts on");*/ if(!privileges_for_io()) { trigger_gp(0); } else { flags |= flag_interrupt; handle_irqs(); } } };;
-table16[0xFC] = table32[0xFC] = function() { { /* cld*/ flags &= ~flag_direction; } };;
-table16[0xFD] = table32[0xFD] = function() { { /* std*/ flags |= flag_direction; } };;
+table16[0xF8] = table32[0xF8] = function() { { /* clc*/ flags &= ~FLAG_CARRY; flags_changed &= ~1; } };;
+table16[0xF9] = table32[0xF9] = function() { { /* stc*/ flags |= FLAG_CARRY; flags_changed &= ~1; } };;
+table16[0xFA] = table32[0xFA] = function() { { /* cli*/ /*dbg_log("interrupts off");*/ if(!privileges_for_io()) { trigger_gp(0); } else { flags &= ~FLAG_INTERRUPT; } } };;
+table16[0xFB] = table32[0xFB] = function() { { /* sti*/ /*dbg_log("interrupts on");*/ if(!privileges_for_io()) { trigger_gp(0); } else { flags |= FLAG_INTERRUPT; handle_irqs(); } } };;
+table16[0xFC] = table32[0xFC] = function() { { /* cld*/ flags &= ~FLAG_DIRECTION; } };;
+table16[0xFD] = table32[0xFD] = function() { { /* std*/ flags |= FLAG_DIRECTION; } };;
 table16[0xFE] = table32[0xFE] = function() { var modrm_byte = read_imm8(); { var mod = modrm_byte & 56; if(mod === 0) { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, inc8(data)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = inc8(data); }; } else if(mod === 8) { var data; var addr; if(modrm_byte < 0xC0) { addr = translate_address_write(modrm_resolve(modrm_byte)); data = memory.read8(addr); memory.write8(addr, dec8(data)); } else { data = reg8[REG8_POSITION_MAP[modrm_byte & 7]]; reg8[REG8_POSITION_MAP[modrm_byte & 7]] = dec8(data); }; } else { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; } } };;
 table16[0xFF] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, inc16(data)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, inc16(data)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = inc16(data); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) === 0xFFF) { phys_addr_high = translate_address_write(virt_addr + 1); data = virt_boundary_read16(phys_addr, phys_addr_high); virt_boundary_write16(phys_addr, phys_addr_high, dec16(data)); } else { data = memory.read16(phys_addr); memory.write16(phys_addr, dec16(data)); } } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; reg16[REG16_POSITION_MAP[modrm_byte & 7]] = dec16(data); }; }; break; case 2: { /* 2, call near*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; push16(get_real_ip()); instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 3: { /* 3, callf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); push16(sreg[reg_cs]); push16(get_real_ip()); switch_seg(reg_cs, safe_read16(virt_addr + 2)); instruction_pointer = get_seg(reg_cs) + safe_read16(virt_addr) | 0; dbg_assert(!page_fault); }; break; case 4: { /* 4, jmp near*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 5: { /* 5, jmpf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); switch_seg(reg_cs, safe_read16(virt_addr + 2)); instruction_pointer = get_seg(reg_cs) + safe_read16(virt_addr) | 0; /* TODO safe read*/ }; break; case 6: { /* 6, push*/ if(modrm_byte < 0xC0) { var data = safe_read16(modrm_resolve(modrm_byte)); } else { data = reg16[REG16_POSITION_MAP[modrm_byte & 7]]; }; push16(data); }; break; case 7: { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; }; break; } } }; table32[0xFF] = function() { var modrm_byte = read_imm8(); { switch(modrm_byte >> 3 & 7) { case 0: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, inc32(data)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, inc32(data)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = inc32(data); }; }; break; case 1: { var data; var virt_addr; var phys_addr; var phys_addr_high; if(modrm_byte < 0xC0) { virt_addr = modrm_resolve(modrm_byte); phys_addr = translate_address_write(virt_addr); if(paging && (virt_addr & 0xFFF) >= 0xFFD) { phys_addr_high = translate_address_write(virt_addr + 3); data = virt_boundary_read32s(phys_addr, phys_addr_high) >>> 0; virt_boundary_write32(phys_addr, phys_addr_high, dec32(data)); } else { data = memory.read32s(phys_addr) >>> 0; memory.write32(phys_addr, dec32(data)); } } else { data = reg32[modrm_byte & 7]; reg32s[modrm_byte & 7] = dec32(data); }; }; break; case 2: { /* 2, call near*/ if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; push32(get_real_ip()); instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 3: { /* 3, callf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); var new_cs = safe_read16(virt_addr + 4); var new_ip = safe_read32s(virt_addr); push32(sreg[reg_cs]); push32(get_real_ip()); switch_seg(reg_cs, new_cs); instruction_pointer = get_seg(reg_cs) + new_ip | 0; }; break; case 4: { /* 4, jmp near*/ if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; instruction_pointer = get_seg(reg_cs) + data | 0; }; break; case 5: { /* 5, jmpf*/ if(modrm_byte >= 0xC0) { raise_exception(6); dbg_assert(false); } var virt_addr = modrm_resolve(modrm_byte); var new_cs = safe_read16(virt_addr + 4); var new_ip = safe_read32s(virt_addr); switch_seg(reg_cs, new_cs); instruction_pointer = get_seg(reg_cs) + new_ip | 0; }; break; case 6: { /* push*/ if(modrm_byte < 0xC0) { var data = safe_read32s(modrm_resolve(modrm_byte)); } else { data = reg32s[modrm_byte & 7]; }; push32(data); }; break; case 7: { if(DEBUG) { dbg_trace(); throw "TODO"; } trigger_ud();; }; break; } } };;
 // 0F ops start here
@@ -6010,7 +6003,7 @@ table0F_16[0xC3] = table0F_32[0xC3] = function() { { dbg_log("No SSE", LOG_CPU);
 table0F_16[0xC4] = table0F_32[0xC4] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0xC5] = table0F_32[0xC5] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0xC6] = table0F_32[0xC6] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
-table0F_16[0xC7] = table0F_32[0xC7] = function() { var modrm_byte = read_imm8(); { /* cmpxchg8b*/ var addr = modrm_resolve(modrm_byte); var m64_low = (safe_read32s(addr) >>> 0); var m64_high = (safe_read32s(addr + 4) >>> 0); if(reg32[reg_eax] === m64_low && reg32[reg_edx] === m64_high) { flags |= flag_zero; safe_write32(addr, reg32[reg_ebx]); safe_write32(addr + 4, reg32[reg_ecx]); } else { flags &= ~flag_zero; reg32[reg_eax] = m64_low; reg32[reg_edx] = m64_high; } flags_changed &= ~flag_zero; } };;
+table0F_16[0xC7] = table0F_32[0xC7] = function() { var modrm_byte = read_imm8(); { /* cmpxchg8b*/ var addr = modrm_resolve(modrm_byte); var m64_low = (safe_read32s(addr) >>> 0); var m64_high = (safe_read32s(addr + 4) >>> 0); if(reg32[reg_eax] === m64_low && reg32[reg_edx] === m64_high) { flags |= FLAG_ZERO; safe_write32(addr, reg32[reg_ebx]); safe_write32(addr + 4, reg32[reg_ecx]); } else { flags &= ~FLAG_ZERO; reg32[reg_eax] = m64_low; reg32[reg_edx] = m64_high; } flags_changed &= ~FLAG_ZERO; } };;
 table0F_16[0xC8 | 0] = table0F_32[0xC8 | 0] = function() { { bswap(reg_eax); } };; table0F_16[0xC8 | 1] = table0F_32[0xC8 | 1] = function() { { bswap(reg_ecx); } };; table0F_16[0xC8 | 2] = table0F_32[0xC8 | 2] = function() { { bswap(reg_edx); } };; table0F_16[0xC8 | 3] = table0F_32[0xC8 | 3] = function() { { bswap(reg_ebx); } };; table0F_16[0xC8 | 4] = table0F_32[0xC8 | 4] = function() { { bswap(reg_esp); } };; table0F_16[0xC8 | 5] = table0F_32[0xC8 | 5] = function() { { bswap(reg_ebp); } };; table0F_16[0xC8 | 6] = table0F_32[0xC8 | 6] = function() { { bswap(reg_esi); } };; table0F_16[0xC8 | 7] = table0F_32[0xC8 | 7] = function() { { bswap(reg_edi); } };;
 table0F_16[0xD0] = table0F_32[0xD0] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;
 table0F_16[0xD1] = table0F_32[0xD1] = function() { { dbg_log("No SSE", LOG_CPU); trigger_ud();} };;

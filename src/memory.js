@@ -3,7 +3,7 @@
 /**
  * @constructor
  */
-function Memory(buffer, memory_size) {
+function Memory(buffer, MEMORY_SIZE) {
   var int8array = new Uint8Array(buffer),
     int16array = new Uint16Array(buffer),
     int8sarray = new Int8Array(buffer),
@@ -36,7 +36,7 @@ function Memory(buffer, memory_size) {
     dbg_assert(!isNaN(addr));
 
     if (
-      (addr >= memory_size || addr < 0) &&
+      (addr >= MEMORY_SIZE || addr < 0) &&
       !memory_map_registered[addr >>> MMAP_BLOCK_SIZE]
     ) {
       dbg_log(
@@ -83,7 +83,7 @@ function Memory(buffer, memory_size) {
   this.print_memory_map = function () {
     var width = 0x80,
       height = 0x10,
-      block_size = (memory_size / width / height) | 0,
+      block_size = (MEMORY_SIZE / width / height) | 0,
       row;
 
     for (var i = 0; i < height; i++) {

@@ -918,11 +918,11 @@ op2(0xCF, {
     }
     else
     {
-        if(flags & flag_nt)
+        if(flags & FLAG_NESTED_TASK)
         {
             if(DEBUG) throw "unimplemented nt";
         }
-        if(flags & flag_vm)
+        if(flags & FLAG_VIRTUAL_8086_MODE)
         {
             if(DEBUG) throw "unimplemented vm";
         }
@@ -938,7 +938,7 @@ op2(0xCF, {
 
     var new_flags = pop32s();
 
-    if(new_flags & flag_vm)
+    if(new_flags & FLAG_VIRTUAL_8086_MODE)
     {
         if(DEBUG) throw "unimplemented";
     }
@@ -997,7 +997,7 @@ op2(0xCF, {
         //dbg_log("iret to " + h(instruction_pointer));
     }
 
-    //dbg_log("iret if=" + (flags & flag_interrupt) + " cpl=" + cpl);
+    //dbg_log("iret if=" + (flags & FLAG_INTERRUPT) + " cpl=" + cpl);
     dbg_assert(!page_fault);
 
     handle_irqs();
@@ -1215,7 +1215,7 @@ op(0xF4, {
     }
 
     // hlt
-    if((flags & flag_interrupt) === 0)
+    if((flags & FLAG_INTERRUPT) === 0)
     {
         log("cpu halted");
         stopped = true;
@@ -1276,12 +1276,12 @@ opm2(0xF7, {
 
 op(0xF8, {
     // clc
-    flags &= ~flag_carry;
+    flags &= ~FLAG_CARRY;
     flags_changed &= ~1;
 });
 op(0xF9, {
     // stc
-    flags |= flag_carry;
+    flags |= FLAG_CARRY;
     flags_changed &= ~1;
 });
 
@@ -1294,7 +1294,7 @@ op(0xFA, {
     }
     else
     {
-        flags &= ~flag_interrupt;
+        flags &= ~FLAG_INTERRUPT;
     }
 });
 op(0xFB, {
@@ -1306,7 +1306,7 @@ op(0xFB, {
     }
     else
     {
-        flags |= flag_interrupt;
+        flags |= FLAG_INTERRUPT;
         handle_irqs();
     }
 
@@ -1314,11 +1314,11 @@ op(0xFB, {
 
 op(0xFC, {
     // cld
-    flags &= ~flag_direction;
+    flags &= ~FLAG_DIRECTION;
 });
 op(0xFD, {
     // std
-    flags |= flag_direction;
+    flags |= FLAG_DIRECTION;
 });
 
 opm(0xFE, {
@@ -2207,20 +2207,20 @@ opm(0xC7, {
     if(reg32[reg_eax] === m64_low &&
             reg32[reg_edx] === m64_high)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
 
         safe_write32(addr, reg32[reg_ebx]);
         safe_write32(addr + 4, reg32[reg_ecx]);
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
 
         reg32[reg_eax] = m64_low;
         reg32[reg_edx] = m64_high;
     }
 
-    flags_changed &= ~flag_zero;
+    flags_changed &= ~FLAG_ZERO;
 });
 
 #define group0FC8(n, r16, r32) op(0xC8 | n, { bswap(r32); });

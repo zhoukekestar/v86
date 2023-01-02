@@ -2,16 +2,11 @@
 /** @define {boolean} */
 var DEBUG = true;
 
+// 内存大小 64KB
+const MEMORY_SIZE = 1024 * 1024 * 64;
 
-var
-
-/**
- * @const
- * @type {number}
- */
-memory_size = 1024 * 1024 * 64;
-
-var
+//
+const
 
 /** @const */ LOG_ALL = -1,
 /** @const */ LOG_NONE = 0,
@@ -59,7 +54,7 @@ var
   *   2 user, read
   *   3 user, write
   */
-var
+const
 /** @const */ TLB_SYSTEM_READ = 1,
 /** @const */ TLB_SYSTEM_WRITE = 2,
 /** @const */ TLB_USER_READ = 4,
@@ -76,33 +71,33 @@ const FLAG_DEFAULT = 1 << 1;
 
 // 状态寄存器
 // 参考 2.3.4 Flags Register https://www.scs.stanford.edu/05au-cs240c/lab/i386/s02_03.htm
-let [
-  flag_carry,     /* 0 */
-  ,               /* 1 INTEL RESERVED 1 */
-  flag_parity,    /* 2 */
-  ,               /* 3 INTEL RESERVED 0 */
-  flag_adjust,    /* 4 AUXILIARY CARRY */
-  ,               /* 5 INTEL RESERVED 0 */
-  flag_zero,      /* 6 */
-  flag_sign,      /* 7 */
-  flag_trap,      /* 8 */
-  flag_interrupt, /* 9 INTERRUPT ENABLE */
-  flag_direction, /* 10 */
-  flag_overflow,  /* 11 */
-  flag_iopl1,     /* 12 I/O PRIVILEGE LEVEL */
-  flag_iopl2,     /* 13 I/O PRIVILEGE LEVEL */
-  flag_nt,        /* 14 NESTED TASK FLAG */
-  ,               /* 15 INTEL RESERVED 0 */
-  flag_resume,    /* 16 */
-  flag_vm,        /* 17 VIRTUAL 8086 MODE */
+const [
+  FLAG_CARRY,                   /* 0 */
+  ,                             /* 1 INTEL RESERVED 1 */
+  FLAG_PARITY,                  /* 2 */
+  ,                             /* 3 INTEL RESERVED 0 */
+  FLAG_ADJUST,                  /* 4 AUXILIARY CARRY */
+  ,                             /* 5 INTEL RESERVED 0 */
+  FLAG_ZERO,                    /* 6 */
+  FLAG_SIGN,                    /* 7 */
+  FLAG_TRAP,                    /* 8 */
+  FLAG_INTERRUPT,               /* 9 INTERRUPT ENABLE */
+  FLAG_DIRECTION,               /* 10 */
+  FLAG_OVERFLOW,                /* 11 */
+  FLAG_IO_PRIVILEGE_LEVEL1,     /* 12 I/O PRIVILEGE LEVEL */
+  FLAG_IO_PRIVILEGE_LEVEL2,     /* 13 I/O PRIVILEGE LEVEL */
+  FLAG_NESTED_TASK,             /* 14 NESTED TASK FLAG */
+  ,                             /* 15 INTEL RESERVED 0 */
+  FLAG_RESUME,                  /* 16 */
+  FLAG_VIRTUAL_8086_MODE,       /* 17 VIRTUAL 8086 MODE */
 ] = FLAG_MASK.toString(2).split('').reverse().map((v, i) => v << i);
 
 // flag I/O PRIVILEGE LEVEL 占了两位
-let flag_iopl = flag_iopl1 | flag_iopl2;
+const FLAG_IO_PRIVILEGE_LEVEL = FLAG_IO_PRIVILEGE_LEVEL1 | FLAG_IO_PRIVILEGE_LEVEL2;
 
 // 所有的算术标记位
 // all arithmetic flags
-const FLAG_ALL_ARITHMETIC = flag_carry | flag_parity | flag_adjust | flag_zero | flag_sign | flag_overflow;
+const FLAG_ALL_ARITHMETIC = FLAG_CARRY | FLAG_PARITY | FLAG_ADJUST | FLAG_ZERO | FLAG_SIGN | FLAG_OVERFLOW;
 
 
 

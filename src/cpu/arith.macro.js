@@ -242,7 +242,7 @@ function inc8(dest_operand)
     last_result = last_op1 + 1 | 0;
 
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
 
     return last_result;
 }
@@ -255,7 +255,7 @@ function inc16(dest_operand)
     last_result = last_op1 + 1 | 0;
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
 
     return last_result;
 }
@@ -268,7 +268,7 @@ function inc32(dest_operand)
     last_result = last_op1 + 1;
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
 
     return last_result;
 }
@@ -283,7 +283,7 @@ function dec8(dest_operand)
     last_result = last_op1 - 1 | 0;
 
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
 
     return last_result;
 }
@@ -296,7 +296,7 @@ function dec16(dest_operand)
     last_result = last_op1 - 1 | 0;
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
 
     return last_result;
 }
@@ -309,7 +309,7 @@ function dec32(dest_operand)
     last_result = last_op1 - 1;
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY;
 
     return last_result;
 }
@@ -386,11 +386,11 @@ function mul8(source_operand)
 
     if(result < 0x100)
     {
-        flags = flags & ~1 & ~flag_overflow;
+        flags = flags & ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags = flags | 1 | flag_overflow;
+        flags = flags | 1 | FLAG_OVERFLOW;
     }
 
     flags_changed = 0;
@@ -404,11 +404,11 @@ function imul8(source_operand)
 
     if(result > 0x7F || result < -0x80)
     {
-        flags = flags | 1 | flag_overflow;
+        flags = flags | 1 | FLAG_OVERFLOW;
     }
     else
     {
-        flags = flags & ~1 & ~flag_overflow;
+        flags = flags & ~1 & ~FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -424,11 +424,11 @@ function mul16(source_operand)
 
     if(high_result === 0)
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -446,11 +446,11 @@ function imul16(source_operand)
 
     if(result > 0x7FFF || result < -0x8000)
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     else
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     flags_changed = 0;
 }
@@ -469,11 +469,11 @@ function imul_reg16(operand1, operand2)
 
     if(result > 0x7FFF || result < -0x8000)
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     else
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     flags_changed = 0;
 
@@ -490,11 +490,11 @@ function mul32(source_operand)
 
     if(high_result === 0)
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
 
@@ -520,11 +520,11 @@ function imul32(source_operand)
 
     if(high_result === (reg32[reg_eax] < 0x80000000 ? 0 : -1))
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
 
@@ -548,11 +548,11 @@ function imul_reg32(operand1, operand2)
 
     if(high_result === 0)
     {
-        flags &= ~1 & ~flag_overflow;
+        flags &= ~1 & ~FLAG_OVERFLOW;
     }
     else
     {
-        flags |= 1 | flag_overflow;
+        flags |= 1 | FLAG_OVERFLOW;
     }
     flags_changed = 0;
 
@@ -724,12 +724,12 @@ function bcd_daa()
         old_cf = getcf(),
         old_af = getaf();
 
-    flags &= ~1 & ~flag_adjust
+    flags &= ~1 & ~FLAG_ADJUST
 
     if((old_al & 0xF) > 9 || old_af)
     {
         reg8[reg_al] += 6;
-        flags |= flag_adjust;
+        flags |= FLAG_ADJUST;
     }
     if(old_al > 0x99 || old_cf)
     {
@@ -740,7 +740,7 @@ function bcd_daa()
     last_result = reg8[reg_al];
     last_op_size = OPSIZE_8;
     last_op1 = last_op2 = 0;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_adjust & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_ADJUST & ~FLAG_OVERFLOW;
 }
 
 function bcd_das()
@@ -755,12 +755,12 @@ function bcd_das()
     if((old_al & 0xF) > 9 || getaf())
     {
         reg8[reg_al] -= 6;
-        flags |= flag_adjust;
+        flags |= FLAG_ADJUST;
         flags = flags & ~1 | old_cf | reg8[reg_al] >> 7;
     }
     else
     {
-        flags &= ~flag_adjust;
+        flags &= ~FLAG_ADJUST;
     }
 
     if(old_al > 0x99 || old_cf)
@@ -772,7 +772,7 @@ function bcd_das()
     last_result = reg8[reg_al];
     last_op_size = OPSIZE_8;
     last_op1 = last_op2 = 0;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_adjust & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_ADJUST & ~FLAG_OVERFLOW;
 }
 
 function bcd_aam()
@@ -812,15 +812,15 @@ function bcd_aaa()
     {
         reg16[reg_ax] += 6;
         reg8[reg_ah] += 1;
-        flags |= flag_adjust | 1;
+        flags |= FLAG_ADJUST | 1;
     }
     else
     {
-        flags &= ~flag_adjust & ~1;
+        flags &= ~FLAG_ADJUST & ~1;
     }
     reg8[reg_al] &= 0xF;
 
-    flags_changed &= ~flag_adjust & ~1;
+    flags_changed &= ~FLAG_ADJUST & ~1;
 }
 
 
@@ -830,15 +830,15 @@ function bcd_aas()
     {
         reg16[reg_ax] -= 6;
         reg8[reg_ah] -= 1;
-        flags |= flag_adjust | 1;
+        flags |= FLAG_ADJUST | 1;
     }
     else
     {
-        flags &= ~flag_adjust & ~1;
+        flags &= ~FLAG_ADJUST & ~1;
     }
     reg8[reg_al] &= 0xF;
 
-    flags_changed &= ~flag_adjust & ~1;
+    flags_changed &= ~FLAG_ADJUST & ~1;
 }
 
 
@@ -860,8 +860,8 @@ function and8(dest_operand, source_operand)
     last_result = dest_operand & source_operand;
 
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -871,8 +871,8 @@ function and16(dest_operand, source_operand)
     last_result = dest_operand & source_operand;
 
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -882,8 +882,8 @@ function and32(dest_operand, source_operand)
     last_result = dest_operand & source_operand;
 
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -893,8 +893,8 @@ function test8(dest_operand, source_operand)
     last_result = dest_operand & source_operand;
 
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 }
 
 function test16(dest_operand, source_operand)
@@ -902,8 +902,8 @@ function test16(dest_operand, source_operand)
     last_result = dest_operand & source_operand;
 
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 }
 
 function test32(dest_operand, source_operand)
@@ -911,8 +911,8 @@ function test32(dest_operand, source_operand)
     last_result = dest_operand & source_operand;
 
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 }
 
 function or8(dest_operand, source_operand)
@@ -920,8 +920,8 @@ function or8(dest_operand, source_operand)
     last_result = dest_operand | source_operand;
 
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -931,8 +931,8 @@ function or16(dest_operand, source_operand)
     last_result = dest_operand | source_operand;
 
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -942,8 +942,8 @@ function or32(dest_operand, source_operand)
     last_result = dest_operand | source_operand;
 
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -953,8 +953,8 @@ function xor8(dest_operand, source_operand)
     last_result = dest_operand ^ source_operand;
 
     last_op_size = OPSIZE_8;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -964,8 +964,8 @@ function xor16(dest_operand, source_operand)
     last_result = dest_operand ^ source_operand;
 
     last_op_size = OPSIZE_16;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -975,8 +975,8 @@ function xor32(dest_operand, source_operand)
     last_result = dest_operand ^ source_operand;
 
     last_op_size = OPSIZE_32;
-    flags &= ~1 & ~flag_overflow & ~flag_adjust;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow & ~flag_adjust;
+    flags &= ~1 & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW & ~FLAG_ADJUST;
 
     return last_result;
 }
@@ -996,10 +996,10 @@ function rol8(dest_operand, count)
 
     var result = dest_operand << count | dest_operand >> (8 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result & 1)
-                | (result << 11 ^ result << 4) & flag_overflow;
+                | (result << 11 ^ result << 4) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1014,10 +1014,10 @@ function rol16(dest_operand, count)
 
     var result = dest_operand << count | dest_operand >> (16 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result & 1)
-                | (result << 11 ^ result >> 4) & flag_overflow;
+                | (result << 11 ^ result >> 4) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1031,10 +1031,10 @@ function rol32(dest_operand, count)
 
     var result = dest_operand << count | dest_operand >>> (32 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result & 1)
-                | (result << 11 ^ result >> 20) & flag_overflow;
+                | (result << 11 ^ result >> 20) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1049,10 +1049,10 @@ function rcl8(dest_operand, count)
 
     var result = dest_operand << count | getcf() << (count - 1) | dest_operand >> (9 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 8 & 1)
-                | (result << 3 ^ result << 4) & flag_overflow;
+                | (result << 3 ^ result << 4) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1067,10 +1067,10 @@ function rcl16(dest_operand, count)
 
     var result = dest_operand << count | getcf() << (count - 1) | dest_operand >> (17 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 16 & 1)
-                | (result >> 5 ^ result >> 4) & flag_overflow;
+                | (result >> 5 ^ result >> 4) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1089,9 +1089,9 @@ function rcl32(dest_operand, count)
         result |= dest_operand >>> (33 - count);
     }
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >>> (32 - count) & 1);
-    flags |= (flags << 11 ^ result >> 20) & flag_overflow;
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >>> (32 - count) & 1);
+    flags |= (flags << 11 ^ result >> 20) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1106,10 +1106,10 @@ function ror8(dest_operand, count)
 
     var result = dest_operand >> count | dest_operand << (8 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 7 & 1)
-                | (result << 4 ^ result << 5) & flag_overflow;
+                | (result << 4 ^ result << 5) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1124,10 +1124,10 @@ function ror16(dest_operand, count)
 
     var result = dest_operand >> count | dest_operand << (16 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 15 & 1)
-                | (result >> 4 ^ result >> 3) & flag_overflow;
+                | (result >> 4 ^ result >> 3) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1141,10 +1141,10 @@ function ror32(dest_operand, count)
 
     var result = dest_operand >>> count | dest_operand << (32 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 31 & 1)
-                | (result >> 20 ^ result >> 19) & flag_overflow;
+                | (result >> 20 ^ result >> 19) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1159,10 +1159,10 @@ function rcr8(dest_operand, count)
 
     var result = dest_operand >> count | getcf() << (8 - count) | dest_operand << (9 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 8 & 1)
-                | (result << 4 ^ result << 5) & flag_overflow;
+                | (result << 4 ^ result << 5) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1177,10 +1177,10 @@ function rcr16(dest_operand, count)
 
     var result = dest_operand >> count | getcf() << (16 - count) | dest_operand << (17 - count);
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (result >> 16 & 1)
-                | (result >> 4 ^ result >> 3) & flag_overflow;
+                | (result >> 4 ^ result >> 3) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1199,10 +1199,10 @@ function rcr32(dest_operand, count)
         result |= dest_operand << (33 - count);
     }
 
-    flags_changed &= ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed &= ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >> (count - 1) & 1)
-                | (result >> 20 ^ result >> 19) & flag_overflow;
+                | (result >> 20 ^ result >> 19) & FLAG_OVERFLOW;
 
     return result;
 }
@@ -1217,10 +1217,10 @@ function shl8(dest_operand, count)
     last_result = dest_operand << count;
 
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (last_result >> 8 & 1)
-                | (last_result << 3 ^ last_result << 4) & flag_overflow;
+                | (last_result << 3 ^ last_result << 4) & FLAG_OVERFLOW;
 
     return last_result;
 }
@@ -1235,10 +1235,10 @@ function shl16(dest_operand, count)
     last_result = dest_operand << count;
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (last_result >> 16 & 1)
-                | (last_result >> 5 ^ last_result >> 4) & flag_overflow;
+                | (last_result >> 5 ^ last_result >> 4) & FLAG_OVERFLOW;
 
     return last_result;
 }
@@ -1253,10 +1253,10 @@ function shl32(dest_operand, count)
     last_result = dest_operand << count;
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
     // test this
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >>> (32 - count) & 1);
-    flags |= ((flags & 1) ^ (last_result >> 31 & 1)) << 11 & flag_overflow;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >>> (32 - count) & 1);
+    flags |= ((flags & 1) ^ (last_result >> 31 & 1)) << 11 & FLAG_OVERFLOW;
 
     return last_result;
 }
@@ -1271,10 +1271,10 @@ function shr8(dest_operand, count)
     last_result = dest_operand >> count;
 
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >> (count - 1) & 1)
-                | (dest_operand >> 7 & 1) << 11 & flag_overflow;
+                | (dest_operand >> 7 & 1) << 11 & FLAG_OVERFLOW;
 
     return last_result;
 }
@@ -1289,10 +1289,10 @@ function shr16(dest_operand, count)
     last_result = dest_operand >> count;
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >> (count - 1) & 1)
-                | (dest_operand >> 4)  & flag_overflow;
+                | (dest_operand >> 4)  & FLAG_OVERFLOW;
 
     return last_result;
 }
@@ -1307,10 +1307,10 @@ function shr32(dest_operand, count)
     last_result = dest_operand >>> count;
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow)
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW)
                 | (dest_operand >>> (count - 1) & 1)
-                | (dest_operand >> 20) & flag_overflow;
+                | (dest_operand >> 20) & FLAG_OVERFLOW;
 
     return last_result;
 }
@@ -1325,8 +1325,8 @@ function sar8(dest_operand, count)
     last_result = dest_operand >> count;
 
     last_op_size = OPSIZE_8;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >> (count - 1) & 1);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >> (count - 1) & 1);
     // of is zero
 
     return last_result;
@@ -1342,8 +1342,8 @@ function sar16(dest_operand, count)
     last_result = dest_operand >> count;
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >> (count - 1) & 1);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >> (count - 1) & 1);
 
     return last_result;
 }
@@ -1358,8 +1358,8 @@ function sar32(dest_operand, count)
     last_result = dest_operand >> count;
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~flag_carry & ~flag_overflow;
-    flags = (flags & ~1 & ~flag_overflow) | (dest_operand >>> (count - 1) & 1);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~FLAG_CARRY & ~FLAG_OVERFLOW;
+    flags = (flags & ~1 & ~FLAG_OVERFLOW) | (dest_operand >>> (count - 1) & 1);
 
     return last_result;
 }
@@ -1384,8 +1384,8 @@ function shrd16(dest_operand, source_operand, count)
     }
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
-    flags = (flags & ~flag_overflow) | ((last_result ^ dest_operand) >> 4 & flag_overflow);
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
+    flags = (flags & ~FLAG_OVERFLOW) | ((last_result ^ dest_operand) >> 4 & FLAG_OVERFLOW);
 
     return last_result;
 }
@@ -1400,9 +1400,9 @@ function shrd32(dest_operand, source_operand, count)
     last_result = dest_operand >>> count | source_operand << (32 - count);
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
     flags = (flags & ~1) | (dest_operand >>> (count - 1) & 1);
-    flags = (flags & ~flag_overflow) | ((last_result ^ dest_operand) >> 20 & flag_overflow);
+    flags = (flags & ~FLAG_OVERFLOW) | ((last_result ^ dest_operand) >> 20 & FLAG_OVERFLOW);
 
     return last_result;
 }
@@ -1426,8 +1426,8 @@ function shld16(dest_operand, source_operand, count)
     }
 
     last_op_size = OPSIZE_16;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
-    flags = (flags & ~flag_overflow) | ((flags & 1) ^ (last_result >> 15 & 1)) << 11;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
+    flags = (flags & ~FLAG_OVERFLOW) | ((flags & 1) ^ (last_result >> 15 & 1)) << 11;
 
     return last_result;
 }
@@ -1442,10 +1442,10 @@ function shld32(dest_operand, source_operand, count)
     last_result = dest_operand << count | source_operand >>> (32 - count);
 
     last_op_size = OPSIZE_32;
-    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~flag_overflow;
+    flags_changed = FLAG_ALL_ARITHMETIC & ~1 & ~FLAG_OVERFLOW;
     // test this
     flags = (flags & ~1) | (dest_operand >>> (32 - count) & 1);
-    flags = (flags & ~flag_overflow) | ((flags & 1) ^ (last_result >> 31 & 1)) << 11;
+    flags = (flags & ~FLAG_OVERFLOW) | ((flags & 1) ^ (last_result >> 31 & 1)) << 11;
 
     return last_result;
 }
@@ -1541,14 +1541,14 @@ function bsf16(old, bit_base)
 
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
 
         // not defined in the docs, but value doesn't change on my intel cpu
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
 
         return mod37_bit_position[((-bit_base & bit_base) >>> 0) % 37];
     }
@@ -1560,13 +1560,13 @@ function bsf32(old, bit_base)
 
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
 
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
 
         return mod37_bit_position[((-bit_base & bit_base) >>> 0) % 37];
     }
@@ -1578,12 +1578,12 @@ function bsr16(old, bit_base)
 
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
 
         var t = bit_base >>> 8;
 
@@ -1604,12 +1604,12 @@ function bsr32(old, bit_base)
 
     if(bit_base === 0)
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return old;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
 
         var tt = bit_base >>> 16,
             t;

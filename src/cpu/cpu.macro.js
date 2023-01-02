@@ -441,7 +441,7 @@ function cpu_init(settings)
 
     current_settings = settings;
 
-    cpu.memory = memory = new Memory(new ArrayBuffer(memory_size), memory_size);
+    cpu.memory = memory = new Memory(new ArrayBuffer(MEMORY_SIZE), MEMORY_SIZE);
 
     segment_is_null = new Uint8Array(8);
     segment_limits = new Uint32Array(8);
@@ -568,7 +568,7 @@ function cpu_init(settings)
 
         memory.write_string(settings.linux.cmdline, 0xF800);
 
-        reg32[reg_eax] = memory_size;
+        reg32[reg_eax] = MEMORY_SIZE;
         reg32[reg_ecx] = 0xF800;
 
         switch_seg(reg_cs, 0);
@@ -748,7 +748,7 @@ function cycle()
     table[opcode]();
 
     // TODO
-    //if(flags & flag_trap)
+    //if(flags & FLAG_TRAP)
     //{
     //
     //}
@@ -1284,7 +1284,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
             throw unimpl("#NP handler");
         }
 
-        if(flags & flag_vm)
+        if(flags & FLAG_VIRTUAL_8086_MODE)
         {
             throw unimpl("VM flag");
         }
@@ -1376,12 +1376,12 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
 
         instruction_pointer = get_seg(reg_cs) + base | 0;
 
-        //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & flag_interrupt));
+        //dbg_log("int" + h(interrupt_nr) + " trap=" + is_trap + " if=" + +!!(flags & FLAG_INTERRUPT));
 
         if(!is_trap)
         {
             // clear int flag for interrupt gates
-            flags &= ~flag_interrupt;
+            flags &= ~FLAG_INTERRUPT;
         }
         else
         {
@@ -1401,7 +1401,7 @@ function call_interrupt_vector(interrupt_nr, is_software_int, error_code)
         push16(sreg[reg_cs]);
         push16(get_real_ip());
 
-        flags = flags & ~flag_interrupt;
+        flags = flags & ~FLAG_INTERRUPT;
 
         switch_seg(reg_cs, memory.read16((interrupt_nr << 2) + 2));
         instruction_pointer = get_seg(reg_cs) + memory.read16(interrupt_nr << 2) | 0;
@@ -1531,16 +1531,16 @@ function get_seg(segment /*, offset*/)
 
 function arpl(seg, r16)
 {
-    flags_changed &= ~flag_zero;
+    flags_changed &= ~FLAG_ZERO;
 
     if((seg & 3) < (reg16[r16] & 3))
     {
-        flags |= flag_zero;
+        flags |= FLAG_ZERO;
         return seg & ~3 | reg16[r16] & 3;
     }
     else
     {
-        flags &= ~flag_zero;
+        flags &= ~FLAG_ZERO;
         return seg;
     }
 }
@@ -1550,7 +1550,7 @@ function handle_irqs()
 {
     if(pic)
     {
-        if((flags & flag_interrupt) && !page_fault)
+        if((flags & FLAG_INTERRUPT) && !page_fault)
         {
             pic.handle_irqs();
         }
@@ -1723,12 +1723,12 @@ function update_flags(new_flags)
     {
         // cpl != 0 and iopl <= cpl
         // can update interrupt flag but not iopl
-        flags = (new_flags & ~flag_iopl) | (flags & flag_iopl);
+        flags = (new_flags & ~FLAG_IO_PRIVILEGE_LEVEL) | (flags & FLAG_IO_PRIVILEGE_LEVEL);
     }
     else
     {
         // cannot update interrupt flag or iopl
-        flags = (new_flags & ~flag_iopl & ~flag_interrupt) | (flags & (flag_iopl | flag_interrupt));
+        flags = (new_flags & ~FLAG_IO_PRIVILEGE_LEVEL & ~FLAG_INTERRUPT) | (flags & (FLAG_IO_PRIVILEGE_LEVEL | FLAG_INTERRUPT));
     }
 
     flags_changed = 0;

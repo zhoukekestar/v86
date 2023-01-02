@@ -4,13 +4,13 @@
  */
 function RTC(dev, diskette_type)
 {
-    var 
+    var
         io = dev.io,
         pic = dev.pic,
 
         cmos_index = 0,
         me = this,
-        
+
         // used for cmos entries
         rtc_time = Date.now(),
         last_update = rtc_time,
@@ -66,13 +66,13 @@ function RTC(dev, diskette_type)
             return Math.bcd_pack(t);
         }
     }
-    
+
 
     // TODO
     // - interrupt on update
     // - countdown
     // - letting bios/os set values
-    // (none of these are used by seabios or the OSes we're 
+    // (none of these are used by seabios or the OSes we're
     // currently testing)
     function cmos_read()
     {
@@ -111,7 +111,7 @@ function RTC(dev, diskette_type)
                 // It is important to know that upon a IRQ 8, Status Register C
                 // will contain a bitmask telling which interrupt happened.
                 // What is important is that if register C is not read after an
-                // IRQ 8, then the interrupt will not happen again. 
+                // IRQ 8, then the interrupt will not happen again.
 
                 //dbg_log("cmos Ch read");
                 return 0;
@@ -133,9 +133,9 @@ function RTC(dev, diskette_type)
                 return encode_time(new Date(rtc_time).getUTCFullYear() / 100 | 0);
 
             case 0x34:
-                return (memory_size - 16 * 1024 * 1024) >> 16 & 0xff;
+                return (MEMORY_SIZE - 16 * 1024 * 1024) >> 16 & 0xff;
             case 0x35:
-                return (memory_size - 16 * 1024 * 1024) >> 24 & 0xff;
+                return (MEMORY_SIZE - 16 * 1024 * 1024) >> 24 & 0xff;
 
             case 0x38:
                 // used by seabios to determine the boot order

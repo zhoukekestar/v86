@@ -124,7 +124,7 @@ function test_le()
     return getzf() || !getsf() !== !getof();
 }
 
-/** 
+/**
  * @return {number}
  * @const
  */
@@ -154,66 +154,66 @@ function getcf()
 /** @return {number} */
 function getpf()
 {
-    if(flags_changed & flag_parity)
+    if(flags_changed & FLAG_PARITY)
     {
         // inverted lookup table
-        return 0x9669 << 2 >> ((last_result ^ last_result >> 4) & 0xF) & flag_parity;
+        return 0x9669 << 2 >> ((last_result ^ last_result >> 4) & 0xF) & FLAG_PARITY;
     }
     else
     {
-        return flags & flag_parity;
+        return flags & FLAG_PARITY;
     }
 }
 
 /** @return {number} */
 function getaf()
 {
-    if(flags_changed & flag_adjust)
+    if(flags_changed & FLAG_ADJUST)
     {
-        return (last_op1 ^ last_op2 ^ last_result ^ (last_op2 < 0) << 4) & flag_adjust;
+        return (last_op1 ^ last_op2 ^ last_result ^ (last_op2 < 0) << 4) & FLAG_ADJUST;
     }
     else
     {
-        return flags & flag_adjust;
+        return flags & FLAG_ADJUST;
     }
 }
 
 /** @return {number} */
 function getzf()
 {
-    if(flags_changed & flag_zero)
+    if(flags_changed & FLAG_ZERO)
     {
-        return (~last_result & last_result - 1) >> last_op_size - 7 & flag_zero;
+        return (~last_result & last_result - 1) >> last_op_size - 7 & FLAG_ZERO;
     }
     else
     {
-        return flags & flag_zero;
+        return flags & FLAG_ZERO;
     }
 }
 
 /** @return {number} */
 function getsf()
 {
-    if(flags_changed & flag_sign)
+    if(flags_changed & FLAG_SIGN)
     {
-        return last_result >> last_op_size - 8 & flag_sign;
+        return last_result >> last_op_size - 8 & FLAG_SIGN;
     }
     else
     {
-        return flags & flag_sign;
+        return flags & FLAG_SIGN;
     }
 }
 
 /** @return {number} */
 function getof()
 {
-    if(flags_changed & flag_overflow)
+    if(flags_changed & FLAG_OVERFLOW)
     {
-        return (((last_op1 ^ last_result) & (last_op2 ^ last_result)) >> last_op_size - 1) << 11 & flag_overflow;
+        return (((last_op1 ^ last_result) & (last_op2 ^ last_result)) >> last_op_size - 1) << 11 & FLAG_OVERFLOW;
     }
     else
     {
-        return flags & flag_overflow;
+        return flags & FLAG_OVERFLOW;
     }
 }
 
@@ -254,7 +254,7 @@ function pusha16()
 {
     var temp = reg16[reg_sp];
 
-    // make sure we don't get a pagefault after having 
+    // make sure we don't get a pagefault after having
     // pushed several registers already
     translate_address_write(temp - 15);
 
@@ -382,7 +382,7 @@ function lea16()
         mod = modrm_byte >> 3 & 7;
 
     // override prefix, so modrm16 does not return the segment part
-    segment_prefix = reg_noseg; 
+    segment_prefix = reg_noseg;
 
     reg16[mod << 1] = modrm_resolve(modrm_byte);
 
@@ -394,7 +394,7 @@ function lea32()
     var modrm_byte = read_imm8(),
         mod = modrm_byte >> 3 & 7;
 
-    segment_prefix = reg_noseg; 
+    segment_prefix = reg_noseg;
 
     reg32[mod] = modrm_resolve(modrm_byte);
 
@@ -406,7 +406,7 @@ function enter16()
     var size = read_imm16(),
         nesting_level = read_imm8(),
         frame_temp;
-    
+
     push16(reg16[reg_bp]);
     frame_temp = reg16[reg_sp];
 

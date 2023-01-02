@@ -15,7 +15,7 @@
 
 #define string_instruction(s, use_cmp, use_di, use_si, fn, aligned_fn)\
     var src, dest, data_src, data_dest;\
-    var size = flags & flag_direction ? -(s >> 3) : s >> 3;\
+    var size = flags & FLAG_DIRECTION ? -(s >> 3) : s >> 3;\
     var ds, es;\
     if(use_cmp && !use_si) data_src = reg ## s[reg_eax];\
     if(use_di) es = get_seg(reg_es), dest = es + regv[reg_vdi];\
@@ -42,7 +42,7 @@
 
 function movsb()
 {
-    string_instruction(8, false, true, true, 
+    string_instruction(8, false, true, true,
         {
             safe_write8(dest, safe_read8(src));
         }, {});
@@ -50,7 +50,7 @@ function movsb()
 
 function movsw()
 {
-    string_instruction(16, false, true, true, 
+    string_instruction(16, false, true, true,
         {
             safe_write16(dest, safe_read16(src));
         }, {
@@ -63,7 +63,7 @@ function movsw()
 
 function movsd()
 {
-    string_instruction(32, false, true, true, 
+    string_instruction(32, false, true, true,
         {
             safe_write32(dest, safe_read32s(src));
         }, {
@@ -211,7 +211,7 @@ function insb()
 {
     var port = reg16[reg_dx];
 
-    string_instruction(8, false, true, false, 
+    string_instruction(8, false, true, false,
         {
             safe_write8(dest, in8(port));
         }, {
@@ -222,7 +222,7 @@ function insw()
 {
     var port = reg16[reg_dx];
 
-    string_instruction(8, false, true, false, 
+    string_instruction(8, false, true, false,
         {
             safe_write16(dest, in16(port));
         }, {
@@ -235,7 +235,7 @@ function insd()
 {
     var port = reg16[reg_dx];
 
-    string_instruction(32, false, true, false, 
+    string_instruction(32, false, true, false,
         {
             safe_write32(dest, in32(port));
         }, {
@@ -248,7 +248,7 @@ function outsb()
 {
     var port = reg16[reg_dx];
 
-    string_instruction(8, false, false, true, 
+    string_instruction(8, false, false, true,
         {
             out8(port, safe_read8(src));
         }, {
@@ -260,7 +260,7 @@ function outsw()
 {
     var port = reg16[reg_dx];
 
-    string_instruction(16, false, false, true, 
+    string_instruction(16, false, false, true,
         {
             out16(port, safe_read16(src));
         }, {
@@ -272,7 +272,7 @@ function outsd()
 {
     var port = reg16[reg_dx];
 
-    string_instruction(32, false, false, true, 
+    string_instruction(32, false, false, true,
         {
             out32(port, safe_read32s(src));
         }, {
