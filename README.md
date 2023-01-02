@@ -6,6 +6,12 @@
 * you can start it with `npx serve . -p 80`
 * rebuild cpu.js `cd src/cpu && make`
 
+# Example
+
+* [Opcode table and ModR/M table](https://www.scs.stanford.edu/05au-cs240c/lab/i386/appa.htm)
+* [instrction format & ModR/M format](https://www.scs.stanford.edu/05au-cs240c/lab/i386/s17_02.htm)
+* [ADD instruction](https://www.scs.stanford.edu/05au-cs240c/lab/i386/ADD.htm)
+
 
 # ORIGINAL
 
